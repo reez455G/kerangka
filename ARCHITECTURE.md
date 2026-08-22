@@ -23,7 +23,7 @@ It does NOT contain agent logic or LLM code. It is the **operational substrate**
 │  │   .omp/skills/      │   │   knowledge/ (OKF archive)   │   │
 │  │   Native skill      │   │   Append-only, git-tracked   │   │
 │  │   discovery         │   │   policies/rules/skills      │   │
-│  │   R2 sync (rclone)  │   │                              │   │
+│  │   Fossil+R2 sync    │   │                              │   │
 │  └─────────────────────┘   └──────────────────────────────┘   │
 │                                                                │
 │  ┌─────────────────────┐   ┌──────────────────────────────┐   │
@@ -77,41 +77,56 @@ Sources:
 - **Bare-class**: authored directly in `.omp/skills/<name>/SKILL.md`
 - **Managed**: created by OMP `manage_skill` tool → `~/.omp/agent/managed-skills/` → synced by `sync-skills.sh`
 
-Skills are authored directly in this Git repository (`.omp/skills/<name>/SKILL.md` is Git-tracked — see "Skill Source of Truth & Distribution" below) and distributed to other devices via Cloudflare R2 + rclone, not via `git pull`. The `omp` shell function auto-pulls from R2 before each session (pull-only, no auto-push). See `program.md` §17 for the full model and §16 for migration history from Syncthing.
+Skill source of truth **split by classification** since program.md §18
+(GitHub Skeleton + Fossil Canonical Migration): PUBLIC skills are Git-tracked
+in a separate public GitHub repo; PRIVATE skills (personal/project-internal,
+infra-fingerprinting) are tracked in a local Fossil repository instead — see
+`private-skills.txt` for the classification list. Both tiers regenerate the
+SAME local `.omp/skills/` runtime tree in this repo (OMP needs everything
+present locally regardless of which side tracks it). Full detail below, and
+`program.md` §17 for migration history from Syncthing→rclone and §18 for
+this split's rationale.
 
 ---
 ## Skill Source of Truth & Distribution
 
 ```
-┌──────────────────┐
-│       Git        │
-│ AUTHORITATIVE    │
-│ SKILL SOURCE     │  .omp/skills/<name>/SKILL.md, Git-tracked
-└────────┬─────────┘
-         │ validate_skills.py (gate)
-         ▼
-    ./publish-skills.sh
-         │ rclone push (PUBLISH_ALLOWED=1 only)
-         ▼
-┌──────────────────┐
-│       R2         │
-│  DISTRIBUTION    │  <R2_BUCKET_NAME>/my-ai-agents/omp-skills/
-│     LAYER        │
-└────────┬─────────┘
-         │ rclone pull (omp wrapper, every session start)
-         ▼
-  Device A / B / C  →  local .omp/skills/  →  OMP runtime (disposable copy)
+┌─────────────────────┐        ┌─────────────────────────┐
+│       GitHub         │        │         Fossil           │
+│  (separate repo,     │        │  (local .fossil file,    │
+│   public skeleton)   │        │   this checkout)         │
+│  PUBLIC skills only  │        │  PRIVATE skills only     │
+└──────────┬────────────┘        └───────────┬───────────────┘
+           │ copy in                          │ already here
+           └──────────────┬───────────────────┘
+                          ▼
+              .omp/skills/ (local, this repo — union of both tiers)
+                          │ validate_skills.py (gate)
+                          ▼
+                  ./publish-skills.sh
+                          │ rclone sync (PUBLISH_ALLOWED=1 only)
+                          ▼
+              ┌──────────────────────┐
+              │          R2           │
+              │   DISTRIBUTION LAYER  │  <bucket>/my-ai-agents/omp-skills/
+              │  (private infra —     │  receives BOTH tiers; R2 is NOT a
+              │   not a public surface)│  public surface, just faster/less
+              └──────────┬─────────────┘  fragile than git-clone-per-device
+                         │ rclone pull (omp wrapper, every session start)
+                         ▼
+           Device A / B / C  →  local .omp/skills/  →  OMP runtime (disposable copy)
 ```
 
-Rules (program.md §17):
-- **Git is the only authoritative skill source.** Create/modify/rename/delete a skill by editing `.omp/skills/<name>/SKILL.md` in this repo's Git working tree — never edit the R2 copy, never treat a local runtime copy on another device as canonical.
-- **R2 is distribution, not collaboration.** It is a one-way mirror of what Git published; multiple devices independently pushing to it would recreate the ambiguity this model eliminates.
-- **rclone is transport only.** It has no opinion about authority — `rclone-sync-skills.sh pull` is safe for any device at any time; `rclone-sync-skills.sh push` is gated (`PUBLISH_ALLOWED=1`) and only ever invoked by `./publish-skills.sh`.
-- **Publishing is explicit.** `./publish-skills.sh` regenerates `.omp/skills/` from its upstream sources (managed-skills, `knowledge/`), runs `src/validate_skills.py` as a hard gate, writes `.omp/skills/MANIFEST.json` (git revision, timestamp, skill count/list — no secrets), then pushes to R2. Validation failure = zero R2 change, non-zero exit.
-- **Normal `omp` startup only pulls.** The wrapper never pushes local state to R2 as a session side effect.
+Rules (program.md §18, supersedes §17's git-only model):
+- **Fossil is the only authoritative source for PRIVATE skills/knowledge.** Modify a private skill by editing `.omp/skills/<name>/SKILL.md` in this Fossil checkout, then `fossil commit` — never edit the R2 copy, never treat another device's local runtime copy as canonical.
+- **The separate `my-ai-agents-public` GitHub repo is the only authoritative source for PUBLIC skills/docs/scripts.** New/changed public skills are edited there, committed, then copied into this repo's `.omp/skills/` before publishing.
+- **R2 is distribution, not collaboration, and not a public surface.** It receives BOTH tiers (R2 is private infrastructure the user's own devices pull from — being distributed via R2 doesn't make a skill public). Multiple devices independently pushing to it would recreate the ambiguity this model eliminates.
+- **rclone is transport only.** It has no opinion about authority — `rclone-sync-skills.sh pull` is safe for any device at any time; `rclone-sync-skills.sh push` is gated (`PUBLISH_ALLOWED=1`) and only ever invoked by `./publish-skills.sh`. Push uses `rclone sync` (not `copy`) so skills retired locally actually disappear from R2 instead of accumulating forever.
+- **Publishing is explicit.** `./publish-skills.sh` regenerates `.omp/skills/` from managed-skills + `knowledge/` embedded-class, runs `src/validate_skills.py` as a hard gate over the full local set (both tiers together), writes `.omp/skills/MANIFEST.json` (Fossil revision, public-repo revision if configured, timestamp, skill count/list — no secrets), then pushes to R2. Validation failure = zero R2 change, non-zero exit.
+- **Fossil autosync is OFF** (program.md §18) — no automatic commit/push, matching the same "no silent auto-publish on session start" lesson that motivated moving away from git-autopull/push in the first place (program.md §13/§16).
+- **Normal `omp` startup only pulls.** The wrapper never pushes local state to R2, never commits to Fossil, never commits/pushes to the public GitHub repo as a session side effect.
 - **Failed pulls never destroy local skills.** `rclone copy --update` only overwrites when the remote is newer; an unreachable R2 leaves existing local skills untouched.
-- **Do not edit R2 directly.** Do not treat a local device copy as authoritative.
-
+- **Do not edit R2 directly.** Do not treat a local device copy as authoritative for either tier.
 
 ## What Is Knowledge?
 
@@ -187,8 +202,8 @@ KV CACHE available account-wide; not bound to gateway until a config use case ex
 
 | State type | Storage | Access |
 |---|---|---|
-| Agent skills | `.omp/skills/` (Git-tracked source; R2 via rclone = distribution) | OMP native provider |
-| Static knowledge | `knowledge/` (git) | OMP native provider |
+| Agent skills | `.omp/skills/` (Fossil-private + GitHub-public sources; R2 via rclone = distribution) | OMP native provider |
+| Static knowledge | `knowledge/` (private entries Fossil-tracked; public entries Git-tracked in my-ai-agents-public) | OMP native provider |
 | Semantic memory | Hindsight | `retain`/`recall`/`reflect` OMP tools |
 | Agent run records | D1 `agent_runs` | Gateway API `POST /v1/runs` |
 | Run timeline | D1 `agent_events` | Gateway API `POST /v1/runs/:id/events` |
@@ -359,7 +374,7 @@ Answer these questions at any time:
 | Script | Purpose |
 |---|---|
 | `setup-new-device.sh` | Onboard a new device (OMP config, Hindsight creds, rclone R2 skill pull) |
-| `publish-skills.sh` | Validate + publish Git `.omp/skills/` → R2 (the only sanctioned Git→R2 path) |
+| `publish-skills.sh` | Validate + publish local `.omp/skills/` (Fossil-private + Git-public union) → R2 (the only sanctioned canonical→R2 path) |
 | `sync-skills.sh` | Regenerate `.omp/skills/` from managed-skills + knowledge/ (does not touch R2) |
 | `sync-okf-skills.py` | knowledge/ embedded-class → `.omp/skills/` |
 | `import-learned-skills.sh` | `.omp/skills/` → `~/.omp/agent/managed-skills/` (fill gaps) |
@@ -416,7 +431,7 @@ my-ai-agents/
 │   ├── skills/                 ← 27 skill backups
 │   └── agent-rules/            ← 7 agent-rules backups
 │
-├── .omp/skills/                ← Git-tracked authoritative skill source; distributed via R2/rclone (see "Skill Source of Truth")
+├── .omp/skills/                ← runtime tree; PRIVATE skills Fossil-tracked here, PUBLIC skills Git-tracked in the separate my-ai-agents-public repo; distributed via R2/rclone (see "Skill Source of Truth")
 │
 ├── orchestrator/               ← Multi-agent orchestration scripts
 ├── research/                   ← Experimental code (fastapi_crud, minidb, etc.)

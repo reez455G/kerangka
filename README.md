@@ -346,25 +346,33 @@ Skill di `.omp/skills/<name>/SKILL.md` otomatis di-scan native oleh `omp` (prior
 
 ### Tambah skill/knowledge baru
 
-1. Edit langsung di Git working tree: `.omp/skills/<nama-skill>/SKILL.md` (frontmatter native `name`/`description` + body). Ini SATU-SATUNYA lokasi edit yang sah (program.md §17) — jangan edit salinan R2, jangan edit salinan lokal di device lain dan menganggapnya kanonik.
+1. Edit di lokasi yang benar tergantung klasifikasi (program.md §18): skill PRIVATE → `.omp/skills/<nama-skill>/SKILL.md` di Fossil checkout ini, lalu `fossil commit`; skill PUBLIC → di working tree repo `my-ai-agents-public` (Git-tracked terpisah), lalu copy ke sini + `git commit`/`push` di sana. Cek `private-skills.txt` untuk daftar klasifikasi saat ini. Jangan pernah edit salinan R2, jangan edit salinan lokal di device lain dan menganggapnya kanonik.
 2. Kalau skill juga perlu jadi arsip OKF (dicari via tag, audit trail git blame): drop juga file `.md` ke `knowledge/skills/` atau `knowledge/agent-rules/` dengan frontmatter OKF, lalu daftarkan di `knowledge/index.md` (kontrak append-only, `program.md` §5). Opsional — banyak skill hanya perlu ada di `.omp/skills/`.
 3. `./publish-skills.sh` — regenerasi `.omp/skills/` dari managed-skills/knowledge, validasi (`src/validate_skills.py`, wajib lolos), tulis `MANIFEST.json`, lalu push ke R2. Device lain menerimanya lewat `rclone pull` otomatis (wrapper `omp`) di sesi berikutnya.
 4. `git commit`/`git push` kapan pun kamu mau riwayat Git ikut bergerak — terpisah dari langkah 3, tidak otomatis.
 
-## Skill Source of Truth: Git → R2 → rclone
+## Skill Source of Truth: Fossil (private) / GitHub (public) → R2 → rclone
 
-`.omp/skills/` **Git-tracked, sumber otoritatif satu-satunya** (program.md §17, membalik keputusan §16 yang men-gitignore-kannya — lihat Decision 13 di `knowledge/control-plane.md` untuk kenapa pembalikan ini aman). `<R2_BUCKET_NAME>/my-ai-agents/omp-skills/` di R2 adalah **mirror distribusi**, bukan tempat edit — jangan pernah tulis ke sana secara langsung, dan jangan anggap salinan lokal di device lain sebagai kanonik.
+`.omp/skills/` sekarang **split sumber otoritatif** berdasarkan klasifikasi (program.md §18, membalik §17's single-Git-source model — lihat Decision 14 di `knowledge/control-plane.md`):
+
+- **PRIVATE** skills (personal/project-internal, infra-fingerprinting — lihat `private-skills.txt`): sumber otoritatif adalah **Fossil** (`~/fossils/my-ai-agents.fossil`, checkout lokal di repo ini). Edit, lalu `fossil commit`.
+- **PUBLIC** skills (generik, aman dibagi): sumber otoritatif adalah repo Git **terpisah** `my-ai-agents-public`. Edit di sana, commit, push, lalu copy hasilnya ke `.omp/skills/` di repo ini sebelum publish.
+
+`<R2_SKILLS_REMOTE_PATH>` di R2 adalah **mirror distribusi untuk KEDUA tier** — jangan pernah tulis ke sana secara langsung, dan jangan anggap salinan lokal di device lain sebagai kanonik. R2 sendiri adalah infra privat (bukan permukaan publik) — didistribusikannya sebuah skill lewat R2 tidak membuatnya publik.
 
 ### Cara kerja
 
 ```
-Git (.omp/skills/, repo ini)
-     │  SATU-SATUNYA sumber otoritatif
-     ▼
+Fossil (private)         my-ai-agents-public (Git, public)
+     │                            │
+     └──────────┬─────────────────┘
+                ▼
+     .omp/skills/ lokal (union kedua tier, repo ini)
+                │
 validate_skills.py (gate) ──FAIL──► stop, R2 tidak berubah
-     │ PASS
-     ▼
-./publish-skills.sh ──► rclone push (PUBLISH_ALLOWED=1) ──► R2 (<R2_BUCKET_NAME>/my-ai-agents/omp-skills/)
+                │ PASS
+                ▼
+./publish-skills.sh ──► rclone sync (PUBLISH_ALLOWED=1) ──► R2 (<R2_SKILLS_REMOTE_PATH>)
                                                                   │
                                           ┌───────────────────────┼───────────────────────┐
                                           ▼                       ▼                       ▼
@@ -373,14 +381,16 @@ validate_skills.py (gate) ──FAIL──► stop, R2 tidak berubah
                                  sesi `omp` mulai)                                  cukup 1 config)
 ```
 
-Fungsi `omp` (dipasang otomatis oleh `setup-new-device.sh`) membungkus binary omp asli — **pull-only**, TIDAK push:
+Push sekarang pakai `rclone sync` (bukan `copy`) — skill yang dihapus lokal juga hilang dari R2, tidak menumpuk selamanya (ditemukan dalam praktik: skill lama yang sudah dihapus sempat "hidup lagi" karena `copy` lama tidak pernah menghapus apa pun di sisi remote).
+
+Fungsi `omp` (dipasang otomatis oleh `setup-new-device.sh`) membungkus binary omp asli — **pull-only**, TIDAK push, TIDAK fossil commit, TIDAK git commit/push:
 ```bash
 omp() {
     (cd ~/my-ai-agents && ./rclone-sync-skills.sh pull)   # tarik update sebelum sesi
     /path/ke/bin/omp "$@"
 }
 ```
-Publish (Git → R2) selalu manual/eksplisit lewat `./publish-skills.sh` — tidak pernah berjalan sebagai efek samping sesi `omp`.
+Publish (Fossil/GitHub → R2) selalu manual/eksplisit lewat `./publish-skills.sh` — tidak pernah berjalan sebagai efek samping sesi `omp`. Fossil autosync juga OFF secara eksplisit (`fossil setting autosync off`).
 
 ### Setup device baru (sekali per device, tidak perlu pairing)
 
@@ -405,15 +415,15 @@ cd ~/my-ai-agents
 ./rclone-sync-skills.sh pull
 ```
 
-**Kredensial R2**: minta ke operator yang punya akses Dashboard Cloudflare (R2 API token permanen S3-compatible **hanya bisa dibuat via Dashboard**, bukan REST API — lihat `program.md` §16.2 untuk detail).
+**Kredensial R2**: minta ke operator yang punya akses Dashboard Cloudflare (R2 API token permanen S3-compatible **hanya bisa dibuat via Dashboard**, bukan REST API — lihat `program.md` §16.2 untuk detail). Perangkat yang juga mau jadi *publisher* untuk skill PRIVATE butuh `fossil` terpasang + salinan `~/fossils/my-ai-agents.fossil` (lihat program.md §18 untuk cara distribusi salinan Fossil antar device sendiri); untuk skill PUBLIC, `git clone` repo `my-ai-agents-public`.
 
 ### Gotcha R2 yang perlu diketahui
 
-R2 mengembalikan `501 NotImplemented` transien pada percobaan upload pertama tiap objek (bug kompatibilitas S3 di sisi R2, bukan bug kita) — data tetap benar tertulis, rclone retry otomatis dan berhasil di percobaan ke-2. **Karena itu skrip pakai `rclone copy --update`, BUKAN `rclone bisync`** — `bisync` menganggap error ini fatal dan abort seluruh sync; `copy` menoleransi retry dan lanjut. `--update` juga jadi pengaman murah terhadap kehilangan kerja: jika ada perubahan lokal belum-di-publish, mtime-nya lebih baru dari objek R2, jadi `pull` berikutnya tidak menimpanya.
+R2 mengembalikan `501 NotImplemented` transien pada percobaan upload pertama tiap objek (bug kompatibilitas S3 di sisi R2, bukan bug kita) — data tetap benar tertulis, rclone retry otomatis dan berhasil di percobaan ke-2. **Karena itu skrip pakai opsi retry rclone bawaan, BUKAN `rclone bisync`** — `bisync` menganggap error ini fatal dan abort seluruh sync. Pull pakai `copy --update` (mtime-gated, tidak pernah menghapus lokal); push pakai `sync` (mirror penuh dari state lokal yang baru lolos validasi).
 
 ### Kalau device kamu masih pakai model lama
 
-Model `both`/bidirectional-push per-device (§16) dan Syncthing (§13) sudah tidak dipakai. Jalankan ulang `bash setup-new-device.sh` untuk memasang fungsi `omp` versi pull-only terbaru.
+Model `both`/bidirectional-push per-device (§16), Syncthing (§13), dan single-Git-source (§17) sudah tidak dipakai. Jalankan ulang `bash setup-new-device.sh` untuk memasang fungsi `omp` versi pull-only terbaru.
 
 
 ## Cara Pakai Hindsight
