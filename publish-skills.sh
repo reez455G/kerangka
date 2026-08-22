@@ -60,7 +60,7 @@ FOSSIL_REV="unknown"
 FOSSIL_DIRTY=""
 if command -v fossil >/dev/null 2>&1 && fossil info >/dev/null 2>&1; then
     FOSSIL_REV="$(fossil info | awk '/^checkout:/{print $2}')"
-    fossil changes --differ 2>/dev/null | grep -q . && FOSSIL_DIRTY=" (uncommitted private changes present)"
+    fossil changes 2>/dev/null | grep -q . && FOSSIL_DIRTY=" (uncommitted private changes present)"
 fi
 PUBLIC_REPO_REV="not-configured"
 if [ -n "${PUBLIC_SKELETON_DIR:-}" ] && git -C "$PUBLIC_SKELETON_DIR" rev-parse HEAD >/dev/null 2>&1; then
