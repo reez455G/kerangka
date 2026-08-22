@@ -1,0 +1,13 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+# .omp/skills/ is the authoritative Git-tracked skill source (program.md §17).
+# Distributed to devices via R2/rclone (publish-skills.sh); never gitignored.
+# Per-fork/per-device list of skill names to keep OUT of the shared Git repo
+# and OUT of R2 publish — see private-skills.txt.example and program.md §18.
+private-skills.txt
+
+# Real infra config — never commit; use the .example templates instead
+cloudflare/my-ai-agents-gateway/wrangler.toml
+registry/resources.json

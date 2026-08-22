@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Runs after `git checkout`/`git clone`'s initial checkout. Args: <prev-head>
+# <new-head> <branch-flag>. Only act on branch checkouts (flag=1), not single
+# file checkouts, to avoid running on every partial/sparse checkout.
+set -euo pipefail
+branch_checkout="${3:-1}"
+[ "$branch_checkout" = "1" ] || exit 0
+cd "$(git rev-parse --show-toplevel)"
+[ -x ./import-learned-skills.sh ] && ./import-learned-skills.sh || true

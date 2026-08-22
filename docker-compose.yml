@@ -1,0 +1,32 @@
+services:
+  hindsight:
+    image: ghcr.io/vectorize-io/hindsight:latest
+    container_name: hindsight
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8890:8888"   # API (host 8890 → container 8888, 8888/8889 in use)
+      - "9999:9999"   # Control Plane UI
+    shm_size: "1gb"   # postgres maintenance_work_mem=512MB needs >64MB default docker shm
+    environment:
+      HINDSIGHT_API_LLM_PROVIDER: ${HINDSIGHT_API_LLM_PROVIDER}
+      HINDSIGHT_API_LLM_API_KEY: ${HINDSIGHT_API_LLM_API_KEY}
+      HINDSIGHT_API_LLM_BASE_URL: ${HINDSIGHT_API_LLM_BASE_URL}
+      HINDSIGHT_API_LLM_MODEL: ${HINDSIGHT_API_LLM_MODEL}
+      HINDSIGHT_API_LLM_TIMEOUT: ${HINDSIGHT_API_LLM_TIMEOUT}
+      HINDSIGHT_API_WORKER_ID: ${HINDSIGHT_API_WORKER_ID}
+      HINDSIGHT_API_STARTUP_WAIT_SECONDS: "1800"
+      HINDSIGHT_API_TOKEN: ${HINDSIGHT_API_TOKEN}
+      HINDSIGHT_API_TENANT_EXTENSION: hindsight_api.extensions.builtin.tenant:ApiKeyTenantExtension
+      HINDSIGHT_API_TENANT_API_KEY: ${HINDSIGHT_API_TOKEN}
+      HINDSIGHT_CP_ACCESS_KEY: ${HINDSIGHT_API_TOKEN}
+      HINDSIGHT_CP_DATAPLANE_API_KEY: ${HINDSIGHT_API_TOKEN}
+      HINDSIGHT_API_RERANKER_MAX_CANDIDATES: ${HINDSIGHT_API_RERANKER_MAX_CANDIDATES:-100}
+    volumes:
+      - hindsight-data:/home/hindsight/.pg0
+
+volumes:
+  hindsight-data:
+    external: true
+    name: my-ai-agent_hindsight-data

@@ -1,0 +1,7 @@
+memory:
+  backend: hindsight
+hindsight:
+  apiUrl: ${HINDSIGHT_API_URL}
+  apiToken: ${HINDSIGHT_API_TOKEN}
+  bankId: ${HINDSIGHT_BANK_ID}
+  scoping: per-project-tagged

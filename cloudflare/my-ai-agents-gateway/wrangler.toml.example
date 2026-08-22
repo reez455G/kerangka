@@ -1,0 +1,21 @@
+name = "my-ai-agents-gateway"
+main = "src/index.ts"
+compatibility_date = "2026-04-01"
+account_id = "<YOUR_CLOUDFLARE_ACCOUNT_ID>"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "my-ai-agents-db"
+database_id = "<YOUR_D1_DATABASE_UUID>"
+
+# R2 binding re-added specifically for the daily digest cron job, which
+# writes its own markdown artifact directly. Agent-submitted artifacts still
+# bypass this binding and write to R2 out-of-band via wrangler/R2 API.
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "<YOUR_R2_BUCKET_NAME>"
+
+# Daily digest: pick a UTC cron matching your local midnight, summarizes the
+# prior 24h across every device/project sharing your Hindsight bank.
+[triggers]
+crons = ["0 17 * * *"]

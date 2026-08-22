@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Runs after `git merge`/`git pull`. Imports any skill newly pulled into
+# .omp/skills/ into ~/.omp/agent/managed-skills/ so it's available globally,
+# not just inside this repo (program.md §11.4). .omp/skills/ itself is
+# git-tracked and already up to date by the time this hook runs — no action
+# needed for that side.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+[ -x ./import-learned-skills.sh ] && ./import-learned-skills.sh || true

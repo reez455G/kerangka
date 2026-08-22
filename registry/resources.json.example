@@ -1,0 +1,69 @@
+{
+  "_meta": {
+    "description": "Authoritative registry of Cloudflare and infrastructure resources owned by this control plane.",
+    "schema_version": "1",
+    "last_verified": "<YYYY-MM-DD>",
+    "account_id": "<CLOUDFLARE_ACCOUNT_ID>",
+    "zone": "<YOUR_ZONE_DOMAIN>",
+    "instructions": "Copy to resources.json (gitignored/Fossil-private) and fill in your own Cloudflare resource inventory. This file is a schema template only \u2014 no real data."
+  },
+  "workers": [
+    {
+      "name": "<worker-name>",
+      "environment": "production",
+      "owner": "<project-name>",
+      "purpose": "<what this worker does>",
+      "status": "active",
+      "url": "<worker-url>.workers.dev",
+      "custom_domain": "<custom-domain-or-null>",
+      "source_dir": "<local-source-path>"
+    }
+  ],
+  "d1_databases": [
+    {
+      "name": "<db-name>",
+      "uuid": "<d1-uuid>",
+      "environment": "production",
+      "owner": "<project-name>",
+      "purpose": "<what this database stores>",
+      "status": "active"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "name": "<KV-BINDING>",
+      "id": "<kv-namespace-id>",
+      "environment": "production",
+      "owner": "shared",
+      "purpose": "<what this KV stores>",
+      "status": "active"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "name": "<bucket-name>",
+      "environment": "production",
+      "owner": "<project-name>",
+      "purpose": "<what this bucket stores>",
+      "status": "active"
+    }
+  ],
+  "tunnels": [
+    {
+      "name": "<tunnel-name>",
+      "environment": "production",
+      "owner": "infrastructure",
+      "purpose": "<what this tunnel exposes>",
+      "status": "configured",
+      "type": "file-based"
+    }
+  ],
+  "custom_domains": [
+    {
+      "hostname": "<subdomain.yourdomain.tld>",
+      "worker": "<worker-name>",
+      "environment": "production",
+      "owner": "<project-name>"
+    }
+  ]
+}
