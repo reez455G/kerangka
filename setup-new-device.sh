@@ -141,7 +141,7 @@ fi
 # ── 4b. Pasang git hooks + import skill ke managed-skills lokal (aman diulang) ──
 log "Memasang git hooks (core.hooksPath -> githooks/) agar 'git pull' otomatis meng-import skill baru..."
 git config core.hooksPath githooks
-chmod +x githooks/post-merge githooks/post-checkout import-learned-skills.sh sync-skills.sh sync-okf-skills.py publish-skills.sh rclone-sync-skills.sh src/validate_skills.py 2>/dev/null || true
+chmod +x githooks/post-merge githooks/post-checkout import-learned-skills.sh sync-skills.sh sync-okf-skills.py publish-skills.sh rclone-sync-skills.sh rclone-sync-private.sh src/validate_skills.py 2>/dev/null || true
 log "Import awal skill repo -> ~/.omp/agent/managed-skills (skill lokal yang sudah ada tidak akan ditimpa)..."
 ./import-learned-skills.sh
 
@@ -215,19 +215,31 @@ if command -v rclone >/dev/null 2>&1; then
         log "Remote rclone 'r2-my-ai-agents' sudah terpasang."
     else
         echo
-        log "Setup remote rclone untuk pull .omp/skills/ dari Cloudflare R2 (distribusi; Git tetap sumber otoritatif)."
+        log "Setup remote rclone untuk sync Cloudflare R2 (distribusi skill & private backup)."
         if grep -q "R2_SKILLS_ACCESS_KEY_ID=" "$TOKEN_ENV_FILE" 2>/dev/null; then
             log "Kredensial R2 ditemukan di $TOKEN_ENV_FILE."
         else
-            echo "Kredensial R2 (S3-compatible) — minta ke operator, atau lihat program.md §17 untuk cara membuatnya."
+            echo "Kredensial R2 (S3-compatible) — minta ke operator atau tekan Enter untuk nilai default:"
             read -rp "R2 Access Key ID: " R2_AK
             read -rsp "R2 Secret Access Key: " R2_SK; echo
-            read -rp "R2 S3 Endpoint (https://<account_id>.r2.cloudflarestorage.com): " R2_EP
+            read -rp "R2 S3 Endpoint [https://9c1382e5fe3d4cfd08fb40eee4ac8a76.r2.cloudflarestorage.com]: " R2_EP
+            R2_EP="${R2_EP:-https://9c1382e5fe3d4cfd08fb40eee4ac8a76.r2.cloudflarestorage.com}"
+            read -rp "R2 Skills Remote Path [efsatu-storage/my-ai-agents/omp-skills]: " R2_SKILLS_PATH
+            R2_SKILLS_PATH="${R2_SKILLS_PATH:-efsatu-storage/my-ai-agents/omp-skills}"
+            read -rp "R2 Private Remote Path [efsatu-storage/my-ai-agents/private-backup]: " R2_PRIV_PATH
+            R2_PRIV_PATH="${R2_PRIV_PATH:-efsatu-storage/my-ai-agents/private-backup}"
             {
                 echo "R2_SKILLS_ACCESS_KEY_ID=$R2_AK"
                 echo "R2_SKILLS_SECRET_ACCESS_KEY=$R2_SK"
                 echo "R2_SKILLS_ENDPOINT=$R2_EP"
+                echo "R2_SKILLS_REMOTE_PATH=$R2_SKILLS_PATH"
+                echo "R2_PRIVATE_REMOTE_PATH=$R2_PRIV_PATH"
             } >> "$TOKEN_ENV_FILE"
+
+            # Sinkronkan juga ke .env lokal repo
+            if [ -f .env ]; then
+                sed -i "s|^R2_SKILLS_ACCESS_KEY_ID=.*|R2_SKILLS_ACCESS_KEY_ID=$R2_AK|; s|^R2_SKILLS_SECRET_ACCESS_KEY=.*|R2_SKILLS_SECRET_ACCESS_KEY=$R2_SK|; s|^R2_SKILLS_ENDPOINT=.*|R2_SKILLS_ENDPOINT=$R2_EP|; s|^R2_SKILLS_REMOTE_PATH=.*|R2_SKILLS_REMOTE_PATH=$R2_SKILLS_PATH|; s|^R2_PRIVATE_REMOTE_PATH=.*|R2_PRIVATE_REMOTE_PATH=$R2_PRIV_PATH|" .env
+            fi
         fi
         # shellcheck disable=SC1090
         source "$TOKEN_ENV_FILE"
@@ -245,7 +257,7 @@ EOF
         log "Remote rclone 'r2-my-ai-agents' ditulis ke $RCLONE_CONF"
     fi
 
-    chmod +x rclone-sync-skills.sh publish-skills.sh 2>/dev/null || true
+    chmod +x rclone-sync-skills.sh rclone-sync-private.sh publish-skills.sh 2>/dev/null || true
     log "Menjalankan sync awal (.omp/skills/ <- R2)..."
     ./rclone-sync-skills.sh pull || warn "Sync awal gagal — cek kredensial R2 di atas, atau coba manual: ./rclone-sync-skills.sh pull"
 else
