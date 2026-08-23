@@ -10,7 +10,7 @@
 #
 set -euo pipefail
 
-REPO_DIR_NAME="my-ai-agents"    # WAJIB konsisten di semua device
+REPO_DIR_NAME="kerangka"        # WAJIB konsisten di semua device
 OMP_CONFIG_DIR="$HOME/.omp/agent"
 OMP_CONFIG_FILE="$OMP_CONFIG_DIR/config.yml"
 TOKEN_ENV_FILE="$HOME/.omp/agent/.env"   # tidak pernah di-commit ke git
