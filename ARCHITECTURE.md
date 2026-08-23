@@ -119,7 +119,7 @@ this split's rationale.
 
 Rules (program.md §18, supersedes §17's git-only model):
 - **Fossil is the only authoritative source for PRIVATE skills/knowledge.** Modify a private skill by editing `.omp/skills/<name>/SKILL.md` in this Fossil checkout, then `fossil commit` — never edit the R2 copy, never treat another device's local runtime copy as canonical.
-- **The separate `my-ai-agents-public` GitHub repo is the only authoritative source for PUBLIC skills/docs/scripts.** New/changed public skills are edited there, committed, then copied into this repo's `.omp/skills/` before publishing.
+- **The separate `kerangka` GitHub repo is the only authoritative source for PUBLIC skills/docs/scripts.** New/changed public skills are edited there, committed, then copied into this repo's `.omp/skills/` before publishing.
 - **R2 is distribution, not collaboration, and not a public surface.** It receives BOTH tiers (R2 is private infrastructure the user's own devices pull from — being distributed via R2 doesn't make a skill public). Multiple devices independently pushing to it would recreate the ambiguity this model eliminates.
 - **rclone is transport only.** It has no opinion about authority — `rclone-sync-skills.sh pull` is safe for any device at any time; `rclone-sync-skills.sh push` is gated (`PUBLISH_ALLOWED=1`) and only ever invoked by `./publish-skills.sh`. Push uses `rclone sync` (not `copy`) so skills retired locally actually disappear from R2 instead of accumulating forever.
 - **Publishing is explicit.** `./publish-skills.sh` regenerates `.omp/skills/` from managed-skills + `knowledge/` embedded-class, runs `src/validate_skills.py` as a hard gate over the full local set (both tiers together), writes `.omp/skills/MANIFEST.json` (Fossil revision, public-repo revision if configured, timestamp, skill count/list — no secrets), then pushes to R2. Validation failure = zero R2 change, non-zero exit.
@@ -203,7 +203,7 @@ KV CACHE available account-wide; not bound to gateway until a config use case ex
 | State type | Storage | Access |
 |---|---|---|
 | Agent skills | `.omp/skills/` (Fossil-private + GitHub-public sources; R2 via rclone = distribution) | OMP native provider |
-| Static knowledge | `knowledge/` (private entries Fossil-tracked; public entries Git-tracked in my-ai-agents-public) | OMP native provider |
+| Static knowledge | `knowledge/` (private entries Fossil-tracked; public entries Git-tracked in kerangka) | OMP native provider |
 | Semantic memory | Hindsight | `retain`/`recall`/`reflect` OMP tools |
 | Agent run records | D1 `agent_runs` | Gateway API `POST /v1/runs` |
 | Run timeline | D1 `agent_events` | Gateway API `POST /v1/runs/:id/events` |
@@ -431,7 +431,7 @@ my-ai-agents/
 │   ├── skills/                 ← 27 skill backups
 │   └── agent-rules/            ← 7 agent-rules backups
 │
-├── .omp/skills/                ← runtime tree; PRIVATE skills Fossil-tracked here, PUBLIC skills Git-tracked in the separate my-ai-agents-public repo; distributed via R2/rclone (see "Skill Source of Truth")
+├── .omp/skills/                ← runtime tree; PRIVATE skills Fossil-tracked here, PUBLIC skills Git-tracked in the separate kerangka repo; distributed via R2/rclone (see "Skill Source of Truth")
 │
 ├── roles/                      ← Role Registry (program.md §19, "Knowledge & Role Layer" below)
 │   ├── README.md                   ← index, routing table, Role vs Skill
@@ -493,7 +493,7 @@ decision record: `knowledge/control-plane.md` Decision 15.
   outcomes, recall hints** — never full `SKILL.md` bodies, never raw
   conversation transcripts.
 - Canonical skill/knowledge ownership is unchanged: PUBLIC → GitHub
-  (`my-ai-agents-public`), PRIVATE → Fossil (`~/fossils/my-ai-agents.fossil`).
+  (`kerangka`), PRIVATE → Fossil (`~/fossils/my-ai-agents.fossil`).
   R2 remains distribution-only for both tiers. This layer adds a registry
   and discovery scripts on top; it does not touch the publish pipeline.
 - A Role is metadata about responsibility, not a second place skill

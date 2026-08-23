@@ -365,7 +365,7 @@ Skill di `.omp/skills/<name>/SKILL.md` otomatis di-scan native oleh `omp` (prior
 
 ### Tambah skill/knowledge baru
 
-1. Edit di lokasi yang benar tergantung klasifikasi (program.md §18): skill PRIVATE → `.omp/skills/<nama-skill>/SKILL.md` di Fossil checkout ini, lalu `fossil commit`; skill PUBLIC → di working tree repo `my-ai-agents-public` (Git-tracked terpisah), lalu copy ke sini + `git commit`/`push` di sana. Cek `private-skills.txt` untuk daftar klasifikasi saat ini. Jangan pernah edit salinan R2, jangan edit salinan lokal di device lain dan menganggapnya kanonik.
+1. Edit di lokasi yang benar tergantung klasifikasi (program.md §18): skill PRIVATE → `.omp/skills/<nama-skill>/SKILL.md` di Fossil checkout ini, lalu `fossil commit`; skill PUBLIC → di working tree repo `kerangka` (Git-tracked terpisah), lalu copy ke sini + `git commit`/`push` di sana. Cek `private-skills.txt` untuk daftar klasifikasi saat ini. Jangan pernah edit salinan R2, jangan edit salinan lokal di device lain dan menganggapnya kanonik.
 2. Kalau skill juga perlu jadi arsip OKF (dicari via tag, audit trail git blame): drop juga file `.md` ke `knowledge/skills/` atau `knowledge/agent-rules/` dengan frontmatter OKF, lalu daftarkan di `knowledge/index.md` (kontrak append-only, `program.md` §5). Opsional — banyak skill hanya perlu ada di `.omp/skills/`.
 3. `./publish-skills.sh` — regenerasi `.omp/skills/` dari managed-skills/knowledge, validasi (`src/validate_skills.py`, wajib lolos), tulis `MANIFEST.json`, lalu push ke R2. Device lain menerimanya lewat `rclone pull` otomatis (wrapper `omp`) di sesi berikutnya.
 4. `git commit`/`git push` kapan pun kamu mau riwayat Git ikut bergerak — terpisah dari langkah 3, tidak otomatis.
@@ -375,14 +375,14 @@ Skill di `.omp/skills/<name>/SKILL.md` otomatis di-scan native oleh `omp` (prior
 `.omp/skills/` sekarang **split sumber otoritatif** berdasarkan klasifikasi (program.md §18, membalik §17's single-Git-source model — lihat Decision 14 di `knowledge/control-plane.md`):
 
 - **PRIVATE** skills (personal/project-internal, infra-fingerprinting — lihat `private-skills.txt`): sumber otoritatif adalah **Fossil** (`~/fossils/my-ai-agents.fossil`, checkout lokal di repo ini). Edit, lalu `fossil commit`.
-- **PUBLIC** skills (generik, aman dibagi): sumber otoritatif adalah repo Git **terpisah** `my-ai-agents-public`. Edit di sana, commit, push, lalu copy hasilnya ke `.omp/skills/` di repo ini sebelum publish.
+- **PUBLIC** skills (generik, aman dibagi): sumber otoritatif adalah repo Git **terpisah** `kerangka`. Edit di sana, commit, push, lalu copy hasilnya ke `.omp/skills/` di repo ini sebelum publish.
 
 `<R2_SKILLS_REMOTE_PATH>` di R2 adalah **mirror distribusi untuk KEDUA tier** — jangan pernah tulis ke sana secara langsung, dan jangan anggap salinan lokal di device lain sebagai kanonik. R2 sendiri adalah infra privat (bukan permukaan publik) — didistribusikannya sebuah skill lewat R2 tidak membuatnya publik.
 
 ### Cara kerja
 
 ```
-Fossil (private)         my-ai-agents-public (Git, public)
+Fossil (private)         kerangka (Git, public)
      │                            │
      └──────────┬─────────────────┘
                 ▼
@@ -434,7 +434,7 @@ cd ~/my-ai-agents
 ./rclone-sync-skills.sh pull
 ```
 
-**Kredensial R2**: minta ke operator yang punya akses Dashboard Cloudflare (R2 API token permanen S3-compatible **hanya bisa dibuat via Dashboard**, bukan REST API — lihat `program.md` §16.2 untuk detail). Untuk skill PUBLIC: `git clone` repo `my-ai-agents-public`. Untuk skill PRIVATE, `setup-new-device.sh` punya langkah **opsional** setup Fossil client (skip kalau device cuma mau konsumsi skill, sudah cukup dari langkah R2 di atas) — dua kasus:
+**Kredensial R2**: minta ke operator yang punya akses Dashboard Cloudflare (R2 API token permanen S3-compatible **hanya bisa dibuat via Dashboard**, bukan REST API — lihat `program.md` §16.2 untuk detail). Untuk skill PUBLIC: `git clone` repo `kerangka`. Untuk skill PRIVATE, `setup-new-device.sh` punya langkah **opsional** setup Fossil client (skip kalau device cuma mau konsumsi skill, sudah cukup dari langkah R2 di atas) — dua kasus:
 - **Sudah punya Fossil server jalan** (mis. `fossil server` di home-lab): tinggal `fossil clone <url> ~/fossils/my-ai-agents.fossil` lalu `fossil open --keep`, script akan tanya URL-nya langsung.
 - **Belum ada server, cuma file `.fossil` lokal di device utama**: salin manual (`scp`, bukan lewat R2/git — ini private) lalu `fossil open ~/fossils/my-ai-agents.fossil --keep`.
 
