@@ -18,3 +18,15 @@ registry/resources.json
 # git — gitignored content never leaves this machine through git — use scp
 # or a Fossil server (README.md "Kredensial R2" section).
 my-ai-agents.fossil
+
+# Full git-history mirror of the old private "my-ai-agents-archived" GitHub
+# repo (67 commits, all blobs) — bundled with `git bundle create --all`
+# before deletion so nothing from that history is lost. Never git-tracked:
+# same rule as my-ai-agents.fossil above, gitignored content never leaves
+# this machine through git. Restore anytime with:
+#   git clone my-ai-agents-archived.bundle <dest>
+# One already-dead secret exists in this history (.env.keys, a dotenvx key
+# removed by the user's own commit "Remove committed .env.keys (dead
+# dotenvx key)") — not an active credential, kept only for historical
+# completeness. See program.md §22 / control-plane.md Decision 18.
+my-ai-agents-archived.bundle
