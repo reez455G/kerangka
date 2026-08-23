@@ -28,8 +28,27 @@ Konfigurasi + basis pengetahuan statis untuk **OMP (Oh My Pi)**, dengan **tiga l
 | **OKF** (`knowledge/`) | Arsip sumber pengetahuan statis — rules, skills, kebijakan | Append-only, versioned di git |
 | **Hindsight** (Docker/remote) | Memori dinamis — percakapan, keputusan, konteks | Semantik, auto-learn via LLM, native ke `omp` (`recall`/`retain`/`reflect`) |
 | **Cloudflare Control Plane** | State terstruktur agent — run/event/artifact tracking, resource registry | Worker `my-ai-agents-gateway` + D1 `my-ai-agents-db`; artifact biner di R2 `<R2_BUCKET_NAME>` (agent tulis langsung, bukan lewat gateway) |
+| **Role Registry** (`roles/`) | Profil tanggung jawab agent (Leader + 5 spesialis) untuk delegasi berbasis peran | Statis, git-tracked. Bukan skill — lihat `roles/README.md` untuk perbedaan Role vs Skill |
 
 Eksekusi LLM dan orkestrasi ditangani native oleh runtime `omp` — tidak ada lagi agen Python custom di repo ini. Detail arsitektur Cloudflare lengkap (diagram, API, keputusan desain): lihat `ARCHITECTURE.md` dan skill `cloudflare-account-ops`.
+
+### Role & Skill discovery (Leader orchestration)
+
+```bash
+# Pilih role berdasarkan task (routing, directive "Role-Based Agent Spawning")
+python3 src/role_search.py "server provisioning"     # -> infrastructure-automation
+python3 src/role_search.py "monitoring"               # -> observability-secops
+
+# Cek skill yang relevan/sudah ada SEBELUM bikin skill baru (cegah duplikat)
+python3 src/skill_search.py "cloudflare"
+python3 src/skill_search.py --inspect cloudflare-account-ops
+
+# Validasi registry role
+python3 src/validate_roles.py
+```
+
+Detail lengkap model Leader → recall → role → spawn → hasil ringkas →
+retain: `ARCHITECTURE.md` § "Knowledge & Role Layer", `program.md` §19.
 
 ## Struktur Direktori
 

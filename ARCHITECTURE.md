@@ -433,6 +433,23 @@ my-ai-agents/
 │
 ├── .omp/skills/                ← runtime tree; PRIVATE skills Fossil-tracked here, PUBLIC skills Git-tracked in the separate my-ai-agents-public repo; distributed via R2/rclone (see "Skill Source of Truth")
 │
+├── roles/                      ← Role Registry (program.md §19, "Knowledge & Role Layer" below)
+│   ├── README.md                   ← index, routing table, Role vs Skill
+│   ├── leader/ROLE.md
+│   ├── infrastructure-automation/ROLE.md
+│   ├── business-analyst/ROLE.md
+│   ├── network-security/ROLE.md
+│   ├── observability-secops/ROLE.md
+│   └── backend-api/ROLE.md
+│
+├── src/
+│   ├── validate_skills.py      ← skill contract gate (publish-skills.sh)
+│   ├── validate_okf.py         ← knowledge/ OKF contract gate
+│   ├── validate_roles.py       ← role contract gate
+│   ├── role_search.py          ← keyword role discovery (routing)
+│   ├── skill_search.py         ← keyword skill discovery (duplicate prevention, progressive disclosure)
+│   └── _search_common.py       ← shared fuzzy matcher for the two search scripts
+│
 ├── orchestrator/               ← Multi-agent orchestration scripts
 ├── research/                   ← Experimental code (fastapi_crud, minidb, etc.)
 ├── site/                       ← Static personal site
@@ -446,3 +463,201 @@ my-ai-agents/
 ├── verify.sh
 └── ingest-okf-to-hindsight.py
 ```
+
+---
+
+## Knowledge & Role Layer (2026-08-23)
+
+This section documents the role-based orchestration model added on top of
+the existing Skill/Hindsight/Fossil/GitHub/R2 architecture. Full design
+rationale and honest scope/limitations: `program.md` §19. Durable
+decision record: `knowledge/control-plane.md` Decision 15.
+
+### Concepts
+
+| Term | Meaning |
+|---|---|
+| **Skill** | Stable, reusable **procedure** — how to do one task. `.omp/skills/<name>/SKILL.md`. |
+| **Memory** | Reusable **experience/outcome** from a past task. Lives in Hindsight, written via `retain`. |
+| **Hindsight** | The recall engine over Memory. Not a second skill repository — see "Non-negotiable separation" below. |
+| **Role** | A responsibility profile for an agent — mission, scope, delegation boundaries. `roles/<role_id>/ROLE.md`. **Role ≠ Skill**: a role names *preferred skill domains*, it never bundles the skills themselves. |
+| **Agent** | A runtime worker operating under a Role. In this repo, "spawning an agent" means invoking the OMP session's own `task` tool with a role's `ROLE.md` folded into the spawn prompt — see "Leader spawn mechanics." |
+| **Workflow** | A coordinated unit of work, usually spanning multiple roles. |
+| **Project** | Higher-level context containing workflows (e.g. `my-ai-agents`, `meridian`). |
+| **Leader** | The main OMP session itself. Orchestrates: recall → route → spawn → synthesize → retain. `roles/leader/ROLE.md`. Never spawned, never a delegation target. |
+| **KnowledgeContext** | The minimal envelope handed to a spawned agent: task + project + role + up to 3 memory summaries + up to 3 skill IDs + constraints. See "Spawn context" below. |
+
+### Non-negotiable separation (unchanged by this layer)
+
+- Hindsight stores **metadata, summaries, experiences, decisions,
+  outcomes, recall hints** — never full `SKILL.md` bodies, never raw
+  conversation transcripts.
+- Canonical skill/knowledge ownership is unchanged: PUBLIC → GitHub
+  (`my-ai-agents-public`), PRIVATE → Fossil (`~/fossils/my-ai-agents.fossil`).
+  R2 remains distribution-only for both tiers. This layer adds a registry
+  and discovery scripts on top; it does not touch the publish pipeline.
+- A Role is metadata about responsibility, not a second place skill
+  bodies get copied into.
+
+### Agent hierarchy
+
+```
+                         USER
+                           |
+                           v
+                  +-----------------+
+                  |      LEADER      |   (this OMP session)
+                  +--------+---------+
+                           |
+                     task analysis
+                           |
+                    Hindsight recall  (recall/reflect, query composed
+                           |           from task+project+workflow terms)
+                     role_search.py   (roles/README.md routing table
+                           |           is the fallback/manual path)
+                     spawn via `task` tool, ROLE.md + KnowledgeContext
+              +------------+------------+------------+------------+
+              v            v            v            v            v
+     infrastructure-  business-   network-    observability-  backend-
+     automation       analyst     security    secops          api
+              |            |            |            |            |
+              +------------+------------+------------+------------+
+                           |
+                    compact structured result
+                           |
+                           v
+                         LEADER
+                           |
+                       synthesis
+                           |
+                           v
+                       retain() outcome (tagged, see "Memory tagging")
+                           |
+                           v
+                          USER
+```
+
+### Leader spawn mechanics — what "spawn a role" actually means here
+
+There is no `omp agent spawn <role> <task>` command (see "What this layer
+is NOT" below). In practice the Leader:
+
+1. `python3 src/role_search.py "<task keywords>"` (or the routing table in
+   `roles/README.md`) picks a `role_id`.
+2. `python3 src/skill_search.py "<task keywords>"` narrows to at most 3
+   relevant skill names — never the role's entire `preferred_skill_domains`
+   list.
+3. `recall("<role_id> <project> <task keywords>")` pulls at most 3 relevant
+   prior memory summaries.
+4. The Leader invokes the `task` tool with:
+   - `task`: the concrete assignment, plus the selected role's `ROLE.md`
+     body pasted in as the agent's operating charter (mission,
+     responsibilities, must-delegate list).
+   - `context`: the 3-or-fewer memory summaries, the 3-or-fewer skill
+     IDs/names, and any explicit constraints — this is the
+     KnowledgeContext envelope. Nothing else from the conversation is
+     forwarded.
+   - `agent`: `"task"` (general-purpose) unless a more specific built-in
+     agent type fits the work better (e.g. `"scout"` for read-only
+     investigation, `"reviewer"` for review-only work).
+5. The spawned agent returns a compact result; the Leader does not forward
+   its full transcript to the user.
+6. If the result is durable/reusable knowledge, the Leader calls `retain()`
+   using the tagging convention below.
+
+Default token budget (tune with real usage, not guessed): max 3 memories,
+max 3 skills, max ~600 tokens of memory-summary text per spawn.
+
+### Spawn context (KnowledgeContext) — worked example
+
+```
+Role: Infrastructure & Automation Engineer (roles/infrastructure-automation/ROLE.md)
+Task: Deploy Prometheus node exporter to server X.
+Project: monitoring
+Relevant memory: Previous deployment succeeded using Ansible (retain id …).
+Relevant skills: prometheus-disk-full-diagnosis, sar-24h-resource-check
+Constraint: existing monitoring network must remain unchanged.
+```
+
+### Memory tagging convention
+
+The real `retain` tool takes only `content` + `context` strings — there is
+no structured `role_id`/`project_id`/`workflow_id` field in the underlying
+API. To keep role-aware recall possible without inventing a schema
+Hindsight doesn't have, prefix `content` with a tag line:
+
+```
+[role:infrastructure-automation][project:my-ai-agents][workflow:prometheus-deployment][outcome:success]
+Skills used: ansible, prometheus, linux-monitoring.
+Result: Exporter installed and verified on server X.
+```
+
+`recall()` queries then include the same tag tokens as search terms
+(e.g. `recall("role:infrastructure-automation prometheus deployment")`).
+This is best-effort lexical filtering, not a guaranteed structured filter
+— documented honestly rather than claiming a capability the tool doesn't
+have.
+
+### Memory write policy
+
+Write memory only for durable/reusable knowledge: architecture decisions,
+successful complex workflows, failure+resolution pairs, reusable
+procedures, gotchas, role hand-offs, project milestones. Do not retain
+greetings, ephemeral debugging chatter, obvious commands, or redundant
+context (directive "Memory write policy").
+
+### Skill metadata — optional additive fields
+
+`src/validate_skills.py` still only requires `name`/`description`
+(unchanged, and it must stay that way — 126 existing skills depend on
+it). New skills MAY additionally declare, for better `skill_search.py`
+ranking:
+
+```yaml
+---
+name: cloudflare-account-ops
+description: Safely inspect and manage Cloudflare infrastructure.
+domain: infrastructure       # optional, single primary domain
+tags: [cloudflare, workers, d1, r2]   # optional
+intent: [inspect, deploy, troubleshoot, cleanup]   # optional
+scope: [account, worker, database, storage]        # optional
+---
+```
+
+These fields are never required and existing skills are not retroactively
+edited to add them — annotate incrementally, only when it actually helps
+discovery for a skill that's hard to find by name/description alone.
+
+### What this layer is NOT (documented limitation, not a silent gap)
+
+- **Not new `omp` CLI verbs.** `omp` (`@oh-my-pi/pi-coding-agent`) is an
+  external binary. It has a plugin system (`omp plugin install/list/...`)
+  for providers/tools, but no confirmed mechanism to register new
+  top-level verbs like `omp role list` or `omp agent spawn`. Building
+  that would mean patching a third-party package — a materially
+  different, much larger undertaking than this repo's scope. What's
+  built instead: `src/role_search.py` / `src/skill_search.py` /
+  `src/validate_roles.py`, runnable today, doing the equivalent
+  discovery/validation work as local scripts.
+- **Not Herdr-based spawning.** Herdr (https://herdr.dev) is a terminal
+  pane/workspace multiplexer for long-running, human-visible agent
+  sessions — not an RPC-style "spawn worker, get compact result,
+  terminate" system. Its own agent guide's rule is explicit: if the
+  guide/API doesn't support a requested behavior, document the
+  limitation and implement the closest supported architecture rather
+  than inventing one. The closest supported architecture already exists
+  in this OMP session as the native `task`/`hub` tools, which is what
+  "Leader spawn mechanics" above uses. Herdr remains available as an
+  escalation path when a task genuinely needs a persistent, human-watched
+  pane (e.g. a long infra job the operator wants to observe live) — it is
+  not the default mechanism for ephemeral role-scoped spawns.
+
+### Design principles (condensed)
+
+Don't remember everything — remember what's useful. Don't load every
+skill — load what's relevant to the current task. Don't create a skill
+if one already exists (`skill_search.py` first). Don't duplicate skill
+bodies into memory. Don't spawn an agent for trivial work. Don't load a
+role's entire skill list into a child agent. Memory and delegation are
+optimization layers — Hindsight being unavailable, or no specialist role
+fitting, must never block the Leader from doing the work itself.
