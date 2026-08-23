@@ -374,7 +374,7 @@ Skill di `.omp/skills/<name>/SKILL.md` otomatis di-scan native oleh `omp` (prior
 
 `.omp/skills/` sekarang **split sumber otoritatif** berdasarkan klasifikasi (program.md §18, membalik §17's single-Git-source model — lihat Decision 14 di `knowledge/control-plane.md`):
 
-- **PRIVATE** skills (personal/project-internal, infra-fingerprinting — lihat `private-skills.txt`): sumber otoritatif adalah **Fossil** (`~/fossils/my-ai-agents.fossil`, checkout lokal di repo ini). Edit, lalu `fossil commit`.
+- **PRIVATE** skills (personal/project-internal, infra-fingerprinting — lihat `private-skills.txt`): sumber otoritatif adalah **Fossil** (`~/kerangka/my-ai-agents.fossil` — file repo-nya colocated di dalam checkout `kerangka`, tapi gitignored, lihat `kerangka/.gitignore`; checkout kerja Fossil tetap di repo ini). Edit, lalu `fossil commit`.
 - **PUBLIC** skills (generik, aman dibagi): sumber otoritatif adalah repo Git **terpisah** `kerangka`. Edit di sana, commit, push, lalu copy hasilnya ke `.omp/skills/` di repo ini sebelum publish.
 
 `<R2_SKILLS_REMOTE_PATH>` di R2 adalah **mirror distribusi untuk KEDUA tier** — jangan pernah tulis ke sana secara langsung, dan jangan anggap salinan lokal di device lain sebagai kanonik. R2 sendiri adalah infra privat (bukan permukaan publik) — didistribusikannya sebuah skill lewat R2 tidak membuatnya publik.
@@ -435,8 +435,8 @@ cd ~/my-ai-agents
 ```
 
 **Kredensial R2**: minta ke operator yang punya akses Dashboard Cloudflare (R2 API token permanen S3-compatible **hanya bisa dibuat via Dashboard**, bukan REST API — lihat `program.md` §16.2 untuk detail). Untuk skill PUBLIC: `git clone` repo `kerangka`. Untuk skill PRIVATE, `setup-new-device.sh` punya langkah **opsional** setup Fossil client (skip kalau device cuma mau konsumsi skill, sudah cukup dari langkah R2 di atas) — dua kasus:
-- **Sudah punya Fossil server jalan** (mis. `fossil server` di home-lab): tinggal `fossil clone <url> ~/fossils/my-ai-agents.fossil` lalu `fossil open --keep`, script akan tanya URL-nya langsung.
-- **Belum ada server, cuma file `.fossil` lokal di device utama**: salin manual (`scp`, bukan lewat R2/git — ini private) lalu `fossil open ~/fossils/my-ai-agents.fossil --keep`.
+- **Sudah punya Fossil server jalan** (mis. `fossil server` di home-lab): tinggal `fossil clone <url> ~/kerangka/my-ai-agents.fossil` lalu `fossil open --keep`, script akan tanya URL-nya langsung.
+- **Belum ada server, cuma file `.fossil` lokal di device utama**: salin manual (`scp`, bukan lewat R2/git — ini private) lalu `fossil open ~/kerangka/my-ai-agents.fossil --keep`.
 
 ### Gotcha R2 yang perlu diketahui
 

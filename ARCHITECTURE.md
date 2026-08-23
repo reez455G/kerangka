@@ -493,7 +493,9 @@ decision record: `knowledge/control-plane.md` Decision 15.
   outcomes, recall hints** — never full `SKILL.md` bodies, never raw
   conversation transcripts.
 - Canonical skill/knowledge ownership is unchanged: PUBLIC → GitHub
-  (`kerangka`), PRIVATE → Fossil (`~/fossils/my-ai-agents.fossil`).
+  (`kerangka`), PRIVATE → Fossil (`~/kerangka/my-ai-agents.fossil` —
+  colocated inside the public repo checkout, gitignored; see
+  `kerangka/.gitignore`).
   R2 remains distribution-only for both tiers. This layer adds a registry
   and discovery scripts on top; it does not touch the publish pipeline.
 - A Role is metadata about responsibility, not a second place skill

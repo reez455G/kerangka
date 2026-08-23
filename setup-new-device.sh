@@ -269,8 +269,11 @@ if [[ "${SETUP_FOSSIL:-n}" =~ ^[Yy]$ ]]; then
         fi
     fi
     if command -v fossil >/dev/null 2>&1; then
-        FOSSIL_REPO="$HOME/fossils/my-ai-agents.fossil"
-        mkdir -p "$(dirname "$FOSSIL_REPO")"
+        FOSSIL_REPO="$HOME/kerangka/my-ai-agents.fossil"
+        if [ ! -d "$HOME/kerangka" ]; then
+            log "~/kerangka (public skill repo) belum ada di device ini — clone dulu (dibutuhkan juga untuk skill PUBLIC)."
+            git clone <YOUR_KERANGKA_REPO_URL> "$HOME/kerangka"
+        fi
         if [ -f "$FOSSIL_REPO" ]; then
             log "File Fossil sudah ada di $FOSSIL_REPO, langsung open checkout di sini."
             fossil open "$FOSSIL_REPO" --keep
@@ -282,7 +285,7 @@ if [[ "${SETUP_FOSSIL:-n}" =~ ^[Yy]$ ]]; then
                 fossil open "$FOSSIL_REPO" --keep
             else
                 warn "Tidak ada server dan file lokal belum ada — salin manual dulu file .fossil dari device utama"
-                warn "(scp, bukan lewat R2/git — ini private): scp <device-utama>:~/fossils/my-ai-agents.fossil $FOSSIL_REPO"
+                warn "(scp, bukan lewat R2/git — ini private): scp <device-utama>:~/kerangka/my-ai-agents.fossil $FOSSIL_REPO"
                 warn "Lalu jalankan: fossil open $FOSSIL_REPO --keep"
             fi
         fi

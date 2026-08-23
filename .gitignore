@@ -11,3 +11,10 @@ private-skills.txt
 # Real infra config — never commit; use the .example templates instead
 cloudflare/my-ai-agents-gateway/wrangler.toml
 registry/resources.json
+
+# Fossil repository database file (PRIVATE) — physically colocated here for
+# convenience, never git-tracked. Checkout lives at ~/my-ai-agents (see
+# program.md §20). Distributing this file to another device is NOT done via
+# git — gitignored content never leaves this machine through git — use scp
+# or a Fossil server (README.md "Kredensial R2" section).
+my-ai-agents.fossil
