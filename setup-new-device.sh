@@ -252,6 +252,47 @@ else
     warn "rclone tidak terinstall — .omp/skills/ tidak akan tersinkron otomatis ke/dari device ini. Install manual lalu ikuti README."
 fi
 
+# ── 5d. (OPSIONAL) Fossil client — hanya kalau device ini juga mau EDIT skill
+# PRIVATE, bukan cuma konsumsi. Skip sepenuhnya kalau tidak butuh — device
+# tetap dapat SEMUA skill (privat + publik) lewat R2 di atas tanpa ini.
+# Fossil tidak pernah otomatis di-setup: mengedit skill privat adalah
+# keputusan sadar operator, program.md §18/§14.
+echo
+read -rp "Setup Fossil client untuk edit skill PRIVATE di device ini? (opsional, y/N): " SETUP_FOSSIL
+if [[ "${SETUP_FOSSIL:-n}" =~ ^[Yy]$ ]]; then
+    if ! command -v fossil >/dev/null 2>&1; then
+        if command -v apt >/dev/null 2>&1; then
+            log "fossil belum terinstall. Menginstall (butuh sudo)..."
+            sudo apt update && sudo apt install -y fossil
+        else
+            warn "fossil belum terinstall dan package manager selain apt terdeteksi — install manual: https://fossil-scm.org/home/uv/download.html"
+        fi
+    fi
+    if command -v fossil >/dev/null 2>&1; then
+        FOSSIL_REPO="$HOME/fossils/my-ai-agents.fossil"
+        mkdir -p "$(dirname "$FOSSIL_REPO")"
+        if [ -f "$FOSSIL_REPO" ]; then
+            log "File Fossil sudah ada di $FOSSIL_REPO, langsung open checkout di sini."
+            fossil open "$FOSSIL_REPO" --keep
+        else
+            read -rp "Sudah punya Fossil SERVER yang jalan (mis. http://host:8090/my-ai-agents)? Kosongkan kalau belum: " FOSSIL_SERVER_URL
+            if [ -n "$FOSSIL_SERVER_URL" ]; then
+                log "Clone dari server Fossil: $FOSSIL_SERVER_URL"
+                fossil clone "$FOSSIL_SERVER_URL" "$FOSSIL_REPO"
+                fossil open "$FOSSIL_REPO" --keep
+            else
+                warn "Tidak ada server dan file lokal belum ada — salin manual dulu file .fossil dari device utama"
+                warn "(scp, bukan lewat R2/git — ini private): scp <device-utama>:~/fossils/my-ai-agents.fossil $FOSSIL_REPO"
+                warn "Lalu jalankan: fossil open $FOSSIL_REPO --keep"
+            fi
+        fi
+        fossil setting autosync off 2>/dev/null || true
+        log "Fossil client siap. Edit skill privat di .omp/skills/<nama>/SKILL.md, lalu 'fossil commit'."
+    fi
+else
+    log "Fossil client dilewati — device ini akan konsumsi semua skill (privat + publik) lewat R2 di atas, tanpa bisa edit skill privat. Bisa dipasang belakangan kapan saja."
+fi
+
 # ── 6. Test konektivitas ke Hindsight server ──
 HINDSIGHT_URL="$(grep -oP '(?<=apiUrl: ).*' "$OMP_CONFIG_FILE" | head -1)"
 if [ -n "$HINDSIGHT_URL" ]; then

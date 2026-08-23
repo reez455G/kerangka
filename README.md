@@ -415,7 +415,9 @@ cd ~/my-ai-agents
 ./rclone-sync-skills.sh pull
 ```
 
-**Kredensial R2**: minta ke operator yang punya akses Dashboard Cloudflare (R2 API token permanen S3-compatible **hanya bisa dibuat via Dashboard**, bukan REST API — lihat `program.md` §16.2 untuk detail). Perangkat yang juga mau jadi *publisher* untuk skill PRIVATE butuh `fossil` terpasang + salinan `~/fossils/my-ai-agents.fossil` (lihat program.md §18 untuk cara distribusi salinan Fossil antar device sendiri); untuk skill PUBLIC, `git clone` repo `my-ai-agents-public`.
+**Kredensial R2**: minta ke operator yang punya akses Dashboard Cloudflare (R2 API token permanen S3-compatible **hanya bisa dibuat via Dashboard**, bukan REST API — lihat `program.md` §16.2 untuk detail). Untuk skill PUBLIC: `git clone` repo `my-ai-agents-public`. Untuk skill PRIVATE, `setup-new-device.sh` punya langkah **opsional** setup Fossil client (skip kalau device cuma mau konsumsi skill, sudah cukup dari langkah R2 di atas) — dua kasus:
+- **Sudah punya Fossil server jalan** (mis. `fossil server` di home-lab): tinggal `fossil clone <url> ~/fossils/my-ai-agents.fossil` lalu `fossil open --keep`, script akan tanya URL-nya langsung.
+- **Belum ada server, cuma file `.fossil` lokal di device utama**: salin manual (`scp`, bukan lewat R2/git — ini private) lalu `fossil open ~/fossils/my-ai-agents.fossil --keep`.
 
 ### Gotcha R2 yang perlu diketahui
 
