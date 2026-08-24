@@ -13,10 +13,11 @@ cloudflare/my-ai-agents-gateway/wrangler.toml
 registry/resources.json
 
 # Fossil repository database file (PRIVATE) — physically colocated here for
-# convenience, never git-tracked. Checkout lives at ~/my-ai-agents (see
-# program.md §20). Distributing this file to another device is NOT done via
-# git — gitignored content never leaves this machine through git — use scp
-# or a Fossil server (README.md "Kredensial R2" section).
+# convenience, never git-tracked. The old checkout at ~/my-ai-agents was
+# deleted 2026-08-23 after all content was committed to Fossil. A new checkout
+# can be opened anytime with: fossil open ~/kerangka/my-ai-agents.fossil <dir>
+# Distributing this file to another device is NOT done via git — use scp or
+# a Fossil server (README.md "Kredensial R2" section).
 my-ai-agents.fossil
 
 # Full git-history mirror of the old private "my-ai-agents-archived" GitHub
