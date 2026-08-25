@@ -54,8 +54,9 @@ total=0
 for d in "$FOSSIL_CHECKOUT"/*/; do
     name="$(basename "$d")"
     [ -f "$d/SKILL.md" ] || continue
+    rm -rf "$DEST/$name"
     mkdir -p "$DEST/$name"
-    cp "$d/SKILL.md" "$DEST/$name/SKILL.md"
+    cp -R "$d/." "$DEST/$name/"
     total=$((total + 1))
 done
 log "Materialized $total skills (public + private union) from Fossil."
@@ -78,7 +79,7 @@ fi
 
 CHANGED=0
 for name in "${PUBLIC_NAMES[@]}"; do
-    git add "$DEST/$name/SKILL.md" 2>/dev/null || true
+    git add "$DEST/$name" 2>/dev/null || true
 done
 
 if git diff --cached --quiet -- "$DEST"; then

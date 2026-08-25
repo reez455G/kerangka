@@ -28,7 +28,7 @@ Loading every preferred skill for every task defeats the point — see
 | [`network-security`](network-security/ROLE.md) | Agen Jaringan | Network design, connectivity, security hardening |
 | [`observability-secops`](observability-secops/ROLE.md) | Agen Pemantau | Monitoring, alerting, incident/security analysis |
 | [`backend-api`](backend-api/ROLE.md) | Agen Integrasi | Backend services, APIs, databases, integrations |
-
+| [`polymarket-trader`](polymarket-trader/ROLE.md) | Agen Trading Polymarket | Prediction market trading, orderbook/price analysis, strategy execution and risk management |
 ## Routing hints (not rigid rules — Hindsight/task analysis may override)
 
 | Trigger keywords | Route to |
@@ -36,6 +36,7 @@ Loading every preferred skill for every task defeats the point — see
 | VM provisioning, Docker deployment, Ansible, server setup | `infrastructure-automation` |
 | Business requirements, business workflow, user stories, acceptance criteria | `business-analyst` |
 | Firewall, VPN, DNS, TLS, network troubleshooting | `network-security` |
+| Polymarket, prediction market, paper trading, early-bird-engine, live executor, clob, btc up/down | `polymarket-trader` |
 | Prometheus, Grafana, alerting, incident, log analysis | `observability-secops` |
 | REST API, database integration, webhook, backend service | `backend-api` |
 | Multi-domain task, task decomposition, cross-role coordination | `leader` handles directly (does not route to itself) |
