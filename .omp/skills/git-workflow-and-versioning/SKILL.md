@@ -298,3 +298,4 @@ For every commit:
 - [ ] No secrets in the diff
 - [ ] No formatting-only changes mixed with behavior changes
 - [ ] `.gitignore` covers standard exclusions
+
