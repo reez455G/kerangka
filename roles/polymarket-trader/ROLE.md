@@ -23,6 +23,9 @@ preferred_skill_domains:
   - polymarket-paper-trader
   - polymarket-live-executor
   - polymarket-trade-engine
+  - early-bird-engine
+  - poly-engine
+  - early-bird-late-down
 memory_filter:
   role: polymarket-trader
 delegation_targets:
