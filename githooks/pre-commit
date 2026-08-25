@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# pre-commit — enforce append-only contract for program.md.
+#
+# program.md is the operating-model document (see program.md itself,
+# section "Append-Only Contract"). It may only grow: new content appended
+# at the end. Existing bytes MUST NEVER be edited or removed, and the file
+# MUST NEVER be deleted. This is enforced mechanically here, not just by
+# convention, because agents (and humans) will otherwise "clean up" or
+# "fix typos" in it over time and erode the record.
+#
+# To make a correction to something already written: append a new dated
+# note explaining the correction. Do not touch the original text.
+set -euo pipefail
+
+PROTECTED="program.md"
+
+# Not touching the protected file at all — nothing to check.
+git diff --cached --name-only | grep -qx "$PROTECTED" || exit 0
+
+# File didn't exist in HEAD yet (first-ever commit introducing it) — allow.
+if ! git cat-file -e "HEAD:$PROTECTED" 2>/dev/null; then
+    exit 0
+fi
+
+# Deletion staged (file removed from the index) — reject outright.
+if ! git cat-file -e ":$PROTECTED" 2>/dev/null; then
+    echo "[pre-commit] REJECTED: $PROTECTED cannot be deleted (append-only contract)." >&2
+    exit 1
+fi
+
+OLD="$(mktemp)"
+NEW="$(mktemp)"
+trap 'rm -f "$OLD" "$NEW"' EXIT
+
+git show "HEAD:$PROTECTED" > "$OLD"
+git show ":$PROTECTED" > "$NEW"
+
+OLD_SIZE="$(wc -c < "$OLD")"
+NEW_SIZE="$(wc -c < "$NEW")"
+
+if [ "$NEW_SIZE" -lt "$OLD_SIZE" ]; then
+    echo "[pre-commit] REJECTED: $PROTECTED is append-only — file shrank ($OLD_SIZE -> $NEW_SIZE bytes)." >&2
+    echo "[pre-commit] Existing content must never be edited or removed. Append new content instead." >&2
+    exit 1
+fi
+
+if ! head -c "$OLD_SIZE" "$NEW" | cmp -s - "$OLD"; then
+    echo "[pre-commit] REJECTED: $PROTECTED is append-only — existing content was modified." >&2
+    echo "[pre-commit] Existing content must never be edited or removed. Append new content instead." >&2
+    exit 1
+fi
+
+echo "[pre-commit] $PROTECTED: append-only check passed ($OLD_SIZE -> $NEW_SIZE bytes, pure append)."
+exit 0

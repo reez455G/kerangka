@@ -171,6 +171,26 @@ Rules:
 - **Do not edit R2 or the GitHub mirror directly.** Neither is authoritative for either tier.
 - **Hindsight is not part of this chain.** Memory (recall/retain/reflect/learn) is a completely separate system — see "Memory Flow" below. Hindsight never synchronizes skills, and skills are never stored inside Hindsight beyond compact metadata references.
 
+## What Is `program.md`? (APPEND-ONLY, mechanically enforced)
+
+`program.md` (repo root) is the operating-model contract — "how should the
+agent work" — rewritten from scratch 2026-08-24 after the original was lost
+in the `rm -rf` incident. As of 2026-08-25 it is **append-only**, same
+contract as `knowledge/`:
+
+- **NEVER** modify existing text in `program.md`.
+- **NEVER** delete `program.md`.
+- **ONLY** append new sections at the end. To correct something already
+  written, append a new dated note explaining the correction — do not
+  touch the original text.
+
+This is enforced **mechanically**, not just by convention:
+`githooks/pre-commit` (active via `git config core.hooksPath githooks`)
+rejects any commit that shrinks `program.md` or changes any of its existing
+bytes — only a commit whose new content is a strict superset (old content
+as an exact byte-for-byte prefix, plus new content appended) is accepted.
+See `program.md` §20 for the full contract text and rationale.
+
 ## What Is Knowledge?
 
 `knowledge/` is the append-only OKF archive. Every file has OKF frontmatter:
@@ -493,7 +513,7 @@ See `.env.example` for full list. Key variables:
 ```
 my-ai-agents/
 ├── ARCHITECTURE.md          ← this file
-├── program.md               ← OKF+memory architecture contract (append-only)
+├── program.md               ← operating-model contract, APPEND-ONLY (mechanically enforced — see below)
 ├── README.md                ← quickstart
 ├── docker-compose.yml       ← Hindsight (Mode A: local)
 ├── .env.example             ← env variable template

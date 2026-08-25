@@ -457,3 +457,31 @@ knowledge/
 Hindsight
     = "apa yang pernah kita pelajari" (memory, dinamis)
 ```
+
+---
+
+## 20. Append-Only Contract (2026-08-25)
+
+`program.md` itu sendiri sekarang **append-only**, sama seperti
+`knowledge/`.
+
+Aturan:
+
+- **DILARANG** mengubah atau menghapus teks yang sudah ada di file ini.
+- **DILARANG** menghapus file ini.
+- **HANYA BOLEH** menambah konten baru di akhir file.
+- Kalau ada koreksi terhadap sesuatu yang sudah ditulis: append catatan baru
+  bertanggal yang menjelaskan koreksinya. Jangan sentuh teks aslinya.
+
+Ditegakkan secara mekanis, bukan cuma konvensi: `githooks/pre-commit`
+(aktif via `git config core.hooksPath githooks`) menolak commit apapun yang
+mengubah atau memperpendek `program.md` — hanya commit yang isinya strict
+superset (byte-for-byte prefix identik + tambahan di akhir) dari versi
+sebelumnya yang diterima.
+
+Rasionalnya sama dengan kenapa `knowledge/` append-only: mencegah agent
+(atau manusia) "membersihkan" atau "memperbaiki typo" pada catatan
+operasional dari waktu ke waktu, yang lama-lama mengikis integritas
+historis dokumen ini — persis seperti yang terjadi pada `program.md`
+versi lama (hilang total dalam insiden `rm -rf` 2026-08-23; lihat
+`knowledge/control-plane.md`).

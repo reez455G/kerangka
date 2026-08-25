@@ -54,7 +54,7 @@ retain: `ARCHITECTURE.md` § "Knowledge & Role Layer", `program.md` §19.
 
 ```
 my-ai-agents/
-├── program.md                    # Kontrak arsitektur (append-only)
+├── program.md                    # Operating-model contract, APPEND-ONLY — mekanis via githooks/pre-commit
 ├── ARCHITECTURE.md                # Referensi arsitektur lengkap (termasuk Cloudflare Control Plane)
 ├── docker-compose.yml            # Hindsight server
 ├── requirements.txt              # Python dependencies (validate_okf.py saja)
@@ -88,6 +88,16 @@ my-ai-agents/
     ├── agent-rules/              # konvensi dari berbagai project
     └── skills/                   # skill library
 ```
+
+## `program.md` — Append-Only
+
+`program.md` (kontrak operating-model) tidak boleh diubah atau dihapus
+setelah ditulis — hanya boleh ditambah di akhir. Ini ditegakkan **mekanis**
+lewat `githooks/pre-commit` (aktifkan dengan `git config core.hooksPath
+githooks`, sudah otomatis di-set `setup-new-device.sh`): commit apapun yang
+mengubah atau memperpendek isi `program.md` akan **ditolak**. Kalau perlu
+koreksi terhadap isi yang sudah ada, append catatan baru bertanggal — jangan
+sentuh teks aslinya. Detail lengkap: `program.md` §20.
 
 ## Deploy
 
