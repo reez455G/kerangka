@@ -24,7 +24,7 @@ Konfigurasi + basis pengetahuan statis untuk **OMP (Oh My Pi)**, dengan **tiga l
 
 | Komponen | Fungsi | Sifat |
 |---|---|---|
-| **`.omp/skills/`** | Skill/rules siap pakai — auto-discovered native oleh `omp` | **Git-tracked, sumber otoritatif satu-satunya** (program.md §17). Didistribusikan ke device lain via **Cloudflare R2 + rclone** (`./publish-skills.sh` untuk publish, pull otomatis lewat wrapper `omp`), prioritas provider tertinggi (100) |
+| **`.omp/skills/`** | Skill/rules siap pakai — auto-discovered native oleh `omp` | **LOCAL RUNTIME COPY, bukan sumber kanonik.** Sumber sesungguhnya split: skill PRIVATE → Fossil (`kerangka-private`), skill PUBLIC → Git repo terpisah `kerangka`. Keduanya di-materialize ke sini sebelum publish. Didistribusikan ke device lain via **Cloudflare R2 + rclone** (`./publish-skills.sh` untuk publish, pull-only otomatis lewat wrapper `omp` — tidak pernah push otomatis), prioritas provider tertinggi (100) |
 | **OKF** (`knowledge/`) | Arsip sumber pengetahuan statis — rules, skills, kebijakan | Append-only, versioned di git |
 | **Hindsight** (Docker/remote) | Memori dinamis — percakapan, keputusan, konteks | Semantik, auto-learn via LLM, native ke `omp` (`recall`/`retain`/`reflect`) |
 | **Cloudflare Control Plane** | State terstruktur agent — run/event/artifact tracking, resource registry | Worker `my-ai-agents-gateway` + D1 `my-ai-agents-db`; artifact biner di R2 `<R2_BUCKET_NAME>` (agent tulis langsung, bukan lewat gateway) |

@@ -23,7 +23,8 @@ It does NOT contain agent logic or LLM code. It is the **operational substrate**
 │  │   .omp/skills/      │   │   knowledge/ (OKF archive)   │   │
 │  │   Native skill      │   │   Append-only, git-tracked   │   │
 │  │   discovery         │   │   policies/rules/skills      │   │
-│  │   Fossil+R2 sync    │   │                              │   │
+│  │   LOCAL RUNTIME COPY│   │                              │   │
+│  │   (not canonical)   │   │                              │   │
 │  └─────────────────────┘   └──────────────────────────────┘   │
 │                                                                │
 │  ┌─────────────────────┐   ┌──────────────────────────────┐   │
@@ -77,56 +78,93 @@ Sources:
 - **Bare-class**: authored directly in `.omp/skills/<name>/SKILL.md`
 - **Managed**: created by OMP `manage_skill` tool → `~/.omp/agent/managed-skills/` → synced by `sync-skills.sh`
 
-Skill source of truth **split by classification** since program.md §18
-(GitHub Skeleton + Fossil Canonical Migration): PUBLIC skills are Git-tracked
-in a separate public GitHub repo; PRIVATE skills (personal/project-internal,
-infra-fingerprinting) are tracked in a local Fossil repository instead — see
-`private-skills.txt` for the classification list. Both tiers regenerate the
-SAME local `.omp/skills/` runtime tree in this repo (OMP needs everything
-present locally regardless of which side tracks it). Full detail below, and
-`program.md` §17 for migration history from Syncthing→rclone and §18 for
-this split's rationale.
+Skill ownership follows **exactly one private canonical source** (Fossil) plus
+**one separate public representation** (GitHub) — never two equivalent sources
+feeding the same downstream artifact as if merged. `.omp/skills/` in this repo
+is a **local runtime copy** (materialized on disk so OMP can discover skills
+locally) — it is never itself authoritative, and it is not where a skill's
+existence is decided. `private-skills.txt` in `kerangka-private` is the
+classification list determining which skills stay Fossil-only vs. also exist
+in the public GitHub repo.
 
 ---
-## Skill Source of Truth & Distribution
+## Skill Ownership: Source / Representation / Distribution / Runtime
+
+Mandated terminology (do not deviate from these terms in this document):
+
+| Term | Role | Is it canonical? |
+|---|---|---|
+| **Fossil** (`kerangka-private`) | PRIVATE CANONICAL — where private skills are authored, reviewed, committed, recovered | **Yes** — the only private canonical source |
+| **GitHub** (`kerangka` repo) | PUBLIC REPRESENTATION — public skeleton, public docs, intentionally public skills | No — a representation, not a runtime feed |
+| **R2** (`omp-skills/` prefix) | RUNTIME DISTRIBUTION — what devices actually pull from | No — a distribution artifact, receives BOTH tiers after publish |
+| **`.omp/skills/`** (this repo) | LOCAL RUNTIME COPY — materialized union of Fossil-private + Git-public content, immediately before publish | No — never a source, never edit here and expect it to persist |
+| **Hindsight** | LONG-TERM MEMORY — conversational/operational memory, entirely separate concern | N/A — not part of the skill/SCM chain at all |
 
 ```
-┌─────────────────────┐        ┌─────────────────────────┐
-│       GitHub         │        │         Fossil           │
-│  (separate repo,     │        │  (local .fossil file,    │
-│   public skeleton)   │        │   this checkout)         │
-│  PUBLIC skills only  │        │  PRIVATE skills only     │
-└──────────┬────────────┘        └───────────┬───────────────┘
-           │ copy in                          │ already here
-           └──────────────┬───────────────────┘
-                          ▼
-              .omp/skills/ (local, this repo — union of both tiers)
-                          │ validate_skills.py (gate)
-                          ▼
-                  ./publish-skills.sh
-                          │ rclone sync (PUBLISH_ALLOWED=1 only)
-                          ▼
-              ┌──────────────────────┐
-              │          R2           │
-              │   DISTRIBUTION LAYER  │  <bucket>/my-ai-agents/omp-skills/
-              │  (private infra —     │  receives BOTH tiers; R2 is NOT a
-              │   not a public surface)│  public surface, just faster/less
-              └──────────┬─────────────┘  fragile than git-clone-per-device
-                         │ rclone pull (omp wrapper, every session start)
-                         ▼
-           Device A / B / C  →  local .omp/skills/  →  OMP runtime (disposable copy)
+                     ┌──────────────────────────┐
+                     │          FOSSIL          │
+                     │      PRIVATE CANONICAL    │
+                     │        SOURCE OF TRUTH    │
+                     └────────────┬─────────────┘
+                                  │
+                   ┌──────────────┴──────────────┐
+                   │                             │
+                   │ (private skills stay        │ (public skills are authored
+                   │  here; never appear in       │  directly in the separate
+                   │  the public repo)             │  GitHub repo — see note below)
+                   ▼                             ▼
+          committed locally              ┌────────────────┐
+                   │                     │    GITHUB      │
+                   │                     │ PUBLIC ONLY    │
+                   │                     │ (kerangka repo)│
+                   │                     └───────┬────────┘
+                   │                             │ copied into .omp/skills/
+                   │                             │ before publish (no automated
+                   │                             │ Fossil→GitHub extraction —
+                   │                             │ see note below)
+                   ▼                             ▼
+           copied into .omp/skills/ before publish
+                                  │
+                                  ▼
+                    .omp/skills/  ← LOCAL RUNTIME COPY, NOT canonical
+                    (materialized union, this repo only)
+                                  │
+                          validate_skills.py (gate)
+                                  │
+                          ./publish-skills.sh
+                                  │ rclone sync (PUBLISH_ALLOWED=1 only)
+                                  ▼
+                    ┌──────────────────────┐
+                    │          R2           │
+                    │   RUNTIME DISTRIBUTION │  <bucket>/my-ai-agents/omp-skills/
+                    │  (private infra —     │  receives BOTH tiers; R2 is NOT a
+                    │   not a public surface)│  public surface, just faster/less
+                    └──────────┬─────────────┘  fragile than git-clone-per-device
+                               │ rclone pull (omp wrapper, pull-only, every session start)
+                               ▼
+                 Device A / B / C  →  .omp/skills/ (LOCAL RUNTIME COPY)  →  OMP
 ```
 
-Rules (program.md §18, supersedes §17's git-only model):
-- **Fossil is the only authoritative source for PRIVATE skills/knowledge.** Modify a private skill by editing `.omp/skills/<name>/SKILL.md` in this Fossil checkout, then `fossil commit` — never edit the R2 copy, never treat another device's local runtime copy as canonical.
-- **The separate `kerangka` GitHub repo is the only authoritative source for PUBLIC skills/docs/scripts.** New/changed public skills are edited there, committed, then copied into this repo's `.omp/skills/` before publishing.
+**Note on public skill authorship**: public skills are currently authored
+directly as files in the `kerangka` GitHub repo's working tree, not produced
+by an automated extraction/redaction step from Fossil. If a skill needs both
+a private (detailed, infra-specific) and public (generic, redacted) version,
+that redaction is done manually by a human/agent creating a separate public
+file — there is no `fossil export --public` mechanism. This directive
+deliberately does not invent one (no unsupported automation).
+
+Rules:
+- **Fossil is the only authoritative source for PRIVATE skills/knowledge.** Modify a private skill by editing it in the `kerangka-private` Fossil checkout, then `fossil commit` — never edit the R2 copy or a device's local runtime copy and expect it to persist as canonical.
+- **The separate `kerangka` GitHub repo is the only authoritative source for PUBLIC skills/docs/scripts.** New/changed public skills are edited there, committed, then copied into this repo's `.omp/skills/` before publishing. GitHub does NOT feed device runtimes directly — only R2 does.
+- **`.omp/skills/` is a local runtime copy, never a source.** Treat any edit made directly in `.omp/skills/` (in this repo or on any device) as ephemeral — it will be silently overwritten by the next `rclone pull` unless separately committed to Fossil or the GitHub repo.
 - **R2 is distribution, not collaboration, and not a public surface.** It receives BOTH tiers (R2 is private infrastructure the user's own devices pull from — being distributed via R2 doesn't make a skill public). Multiple devices independently pushing to it would recreate the ambiguity this model eliminates.
 - **rclone is transport only.** It has no opinion about authority — `rclone-sync-skills.sh pull` is safe for any device at any time; `rclone-sync-skills.sh push` is gated (`PUBLISH_ALLOWED=1`) and only ever invoked by `./publish-skills.sh`. Push uses `rclone sync` (not `copy`) so skills retired locally actually disappear from R2 instead of accumulating forever.
 - **Publishing is explicit.** `./publish-skills.sh` regenerates `.omp/skills/` from managed-skills + `knowledge/` embedded-class, runs `src/validate_skills.py` as a hard gate over the full local set (both tiers together), writes `.omp/skills/MANIFEST.json` (Fossil revision, public-repo revision if configured, timestamp, skill count/list — no secrets), then pushes to R2. Validation failure = zero R2 change, non-zero exit.
-- **Fossil autosync is OFF** (program.md §18) — no automatic commit/push, matching the same "no silent auto-publish on session start" lesson that motivated moving away from git-autopull/push in the first place (program.md §13/§16).
-- **Normal `omp` startup only pulls.** The wrapper never pushes local state to R2, never commits to Fossil, never commits/pushes to the public GitHub repo as a session side effect.
+- **Fossil autosync is OFF** — no automatic commit/push, matching the same "no silent auto-publish on session start" lesson that motivated moving away from git-autopull/push in the first place.
+- **Normal `omp` startup only pulls.** The wrapper never pushes local state to R2, never commits to Fossil, never commits/pushes to the public GitHub repo as a session side effect. (Verified 2026-08-24: `omp()` in `~/.zshrc` contains no push call.)
 - **Failed pulls never destroy local skills.** `rclone copy --update` only overwrites when the remote is newer; an unreachable R2 leaves existing local skills untouched.
 - **Do not edit R2 directly.** Do not treat a local device copy as authoritative for either tier.
+- **Hindsight is not part of this chain.** Memory (recall/retain/reflect/learn) is a completely separate system — see "Memory Flow" below. Hindsight never synchronizes skills, and skills are never stored inside Hindsight beyond compact metadata references.
 
 ## What Is Knowledge?
 
@@ -150,7 +188,7 @@ Rules (from `program.md`):
 
 ---
 
-## What Is Memory?
+## What Is Memory? (LONG-TERM MEMORY — separate from Skill/SCM chain)
 
 Hindsight provides semantic long-term memory via `retain()`, `recall()`, `reflect()` OMP native tools.
 
@@ -158,8 +196,51 @@ Hindsight provides semantic long-term memory via `retain()`, `recall()`, `reflec
 - **URL**: `hindsight.<YOUR_ZONE_DOMAIN>` (via Cloudflare Tunnel `home-lab`) or `localhost:8890` (Mode A)
 - **Auth**: `HINDSIGHT_API_TOKEN` (in `.env`, gitignored)
 - **LLM backend**: `meta/llama-3.1-70b-instruct` via NVIDIA — use non-reasoning instruct models only
+- **Persistence**: embedded Postgres 18.1.0 inside the `hindsight` Docker container, data on the `my-ai-agent_hindsight-data` Docker volume (`unless-stopped` restart policy)
 
 Memory is NOT stored in D1 or KV. D1 stores structured metadata; Hindsight stores semantic content.
+
+**Memory Flow** (independent of the Skill/SCM flow above — these never merge):
+
+```
+OMP
+ │
+ ├── recall() / reflect()   ← read
+ └── retain() / learn()     ← write
+          │
+          ▼
+      Hindsight
+  (embedded Postgres, Docker volume)
+          │
+          │ explicit backup (NOT automatic, NOT session-triggered)
+          ▼
+  ./backup-hindsight.sh
+  (hot `pg_dump --format=plain`, gzip)
+          │
+          ▼
+   R2:hindsight-backups/    ← MEMORY BACKUP
+   (separate R2 prefix from omp-skills/ — different concern, different lifecycle)
+```
+
+**Why `pg_dump` is safe for a hot backup**: Hindsight's embedded database is
+standard PostgreSQL 18.1.0 (confirmed via `instance.json` inside the
+container). `pg_dump` is PostgreSQL's own supported logical-backup tool and
+is explicitly documented as safe to run against a live, writing database —
+it takes an MVCC snapshot, not a raw file copy. This is NOT "raw copying the
+internal database" (which would risk corruption); it is the standard
+supported export mechanism for this database engine. Verified empirically:
+`docker restart hindsight` → fact count identical before/after (12,706 facts,
+2026-08-24), confirming persistence independent of the backup process.
+
+Restore procedure is documented in `backup-hindsight.sh`'s header comment.
+
+**Hindsight is never part of the skill/SCM chain.** It does not synchronize
+skills between devices, does not read from or write to Fossil/GitHub/R2's
+`omp-skills/` prefix, and full `SKILL.md` bodies are not stored inside it —
+only compact `retain()`/`learn()` summaries and metadata tags
+(`[role:...] [project:...] [workflow:...] [skill:...] [status:...]`) are, so
+recall stays a cheap index into the skill/role system rather than a second
+copy of it.
 
 ---
 
