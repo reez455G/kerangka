@@ -107,52 +107,46 @@ Jangan membuat duplikasi skill.
 
 ## 5. Skill Lifecycle
 
-Skill private:
+Sejak 2026-08-24: Fossil adalah **satu-satunya sumber kanonik** untuk SEMUA
+skill — public maupun private. Semua skill (create/update/edit) terjadi di
+Fossil terlebih dahulu.
 
 ```text
-create/update
+create/update (skill apapun, public atau private)
      │
      ▼
-Fossil
+Fossil (kerangka-private)
      │
      ▼
-validate
+fossil commit
      │
      ▼
-publish
+fossil-export-skills.sh
      │
-     ▼
-R2
+     ├──► .omp/skills/ (materialize semua) ──► validate ──► publish-skills.sh ──► R2
+     │
+     └──► subset publik (exclude private-skills.txt) ──► git commit ──► git push ──► GitHub
 ```
 
-R2 hanya digunakan untuk distribusi.
+R2 hanya digunakan untuk distribusi (menerima kedua tier).
+
+GitHub `kerangka` sekarang **generated mirror** dari subset publik — bukan
+lagi lokasi edit langsung. Jangan edit skill langsung di working tree git
+`kerangka`; perubahan akan tertimpa oleh run `fossil-export-skills.sh`
+berikutnya.
 
 `.omp/skills/` pada device adalah runtime copy — bukan sumber kanonik.
 
-## 6. Public Skills
+## 6. Klasifikasi Public vs Private
 
-Skill yang aman dan generic dapat dipublikasikan.
-
-Flow (proses manual, bukan automated pipeline — tidak ada tool
-`fossil export --public` atau sejenisnya):
-
-```text
-Private canonical source
-        │
-        ▼
-generalize / redact (manual)
-        │
-        ▼
-GitHub public repository
-```
-
-Catatan: mayoritas skill publik saat ini diedit langsung sebagai konten
-publik di repo GitHub (`kerangka`) — tidak semuanya berasal dari redaksi
-skill privat. Flow di atas berlaku untuk kasus ketika sebuah skill privat
-memang punya padanan publik yang perlu dibuat.
+`private-skills.txt` (di checkout Fossil) adalah **exclusion list**: semua
+skill Fossil-tracked adalah kandidat export publik secara default, KECUALI
+namanya ada di daftar ini.
 
 Jangan memindahkan data pribadi, credential, konfigurasi private, atau
-informasi internal ke repository public.
+informasi internal ke skill yang tidak masuk `private-skills.txt` — begitu
+skill lolos exclusion list, ia otomatis ter-mirror ke GitHub saat
+`fossil-export-skills.sh` dijalankan.
 
 Public skill boleh menjelaskan mekanisme my-ai-agents secara detail selama
 isinya tidak mengandung data private.
@@ -377,14 +371,17 @@ retain lesson jika reusable
 ```text
                     ┌───────────────┐
                     │    Fossil     │
-                    │    PRIVATE    │
-                    │   CANONICAL   │
+                    │  SOLE SOURCE  │
+                    │  (public+priv)│
                     └───────┬───────┘
+                            │
+                    fossil-export-skills.sh
                             │
               ┌─────────────┴─────────────┐
               │                           │
               ▼                           ▼
-       Public extraction             validate/publish
+       git mirror (public          validate/publish
+       subset only)                      │
               │                           │
               ▼                           ▼
           GitHub                         R2
@@ -418,8 +415,8 @@ retain lesson jika reusable
 
 Sistem harus tetap sederhana:
 
-- Fossil = private source
-- GitHub = public source
+- Fossil = sole canonical source (public + private)
+- GitHub = generated mirror (public subset)
 - R2 = distribution
 - OMP = runtime
 - Role = responsibility

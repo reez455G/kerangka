@@ -90,80 +90,85 @@ in the public GitHub repo.
 ---
 ## Skill Ownership: Source / Representation / Distribution / Runtime
 
+**Updated 2026-08-24**: Fossil is now the SOLE source of truth for ALL
+skills — public and private alike. GitHub is a generated mirror, not an
+independent authoring location. (Prior model — public skills authored
+directly in GitHub — is superseded; see `knowledge/control-plane.md`
+Decision 1 for the correction history and Decision 2 for this change.)
+
 Mandated terminology (do not deviate from these terms in this document):
 
 | Term | Role | Is it canonical? |
 |---|---|---|
-| **Fossil** (`kerangka-private`) | PRIVATE CANONICAL — where private skills are authored, reviewed, committed, recovered | **Yes** — the only private canonical source |
-| **GitHub** (`kerangka` repo) | PUBLIC REPRESENTATION — public skeleton, public docs, intentionally public skills | No — a representation, not a runtime feed |
+| **Fossil** (`kerangka-private`) | SOLE CANONICAL SOURCE — where ALL skills (public + private) are authored, reviewed, committed, recovered | **Yes** — the only canonical source for skill content, full stop |
+| **GitHub** (`kerangka` repo) | GENERATED MIRROR — public skeleton, public docs, and a read-only export of the public-subset skills | No — output of `fossil-export-skills.sh`, never hand-edited |
 | **R2** (`omp-skills/` prefix) | RUNTIME DISTRIBUTION — what devices actually pull from | No — a distribution artifact, receives BOTH tiers after publish |
-| **`.omp/skills/`** (this repo) | LOCAL RUNTIME COPY — materialized union of Fossil-private + Git-public content, immediately before publish | No — never a source, never edit here and expect it to persist |
+| **`.omp/skills/`** (this repo) | LOCAL RUNTIME COPY — materialized from Fossil, immediately before publish | No — never a source, never edit here and expect it to persist |
 | **Hindsight** | LONG-TERM MEMORY — conversational/operational memory, entirely separate concern | N/A — not part of the skill/SCM chain at all |
 
 ```
                      ┌──────────────────────────┐
                      │          FOSSIL          │
-                     │      PRIVATE CANONICAL    │
-                     │        SOURCE OF TRUTH    │
+                     │   SOLE CANONICAL SOURCE   │
+                     │  (public + private, ALL)  │
+                     │      kerangka-private      │
                      └────────────┬─────────────┘
-                                  │
-                   ┌──────────────┴──────────────┐
-                   │                             │
-                   │ (private skills stay        │ (public skills are authored
-                   │  here; never appear in       │  directly in the separate
-                   │  the public repo)             │  GitHub repo — see note below)
-                   ▼                             ▼
-          committed locally              ┌────────────────┐
-                   │                     │    GITHUB      │
-                   │                     │ PUBLIC ONLY    │
-                   │                     │ (kerangka repo)│
-                   │                     └───────┬────────┘
-                   │                             │ copied into .omp/skills/
-                   │                             │ before publish (no automated
-                   │                             │ Fossil→GitHub extraction —
-                   │                             │ see note below)
-                   ▼                             ▼
-           copied into .omp/skills/ before publish
-                                  │
+                                  │ fossil-export-skills.sh
                                   ▼
                     .omp/skills/  ← LOCAL RUNTIME COPY, NOT canonical
-                    (materialized union, this repo only)
+                    (materialized from Fossil, this repo)
                                   │
-                          validate_skills.py (gate)
-                                  │
-                          ./publish-skills.sh
-                                  │ rclone sync (PUBLISH_ALLOWED=1 only)
-                                  ▼
-                    ┌──────────────────────┐
-                    │          R2           │
-                    │   RUNTIME DISTRIBUTION │  <bucket>/my-ai-agents/omp-skills/
-                    │  (private infra —     │  receives BOTH tiers; R2 is NOT a
-                    │   not a public surface)│  public surface, just faster/less
-                    └──────────┬─────────────┘  fragile than git-clone-per-device
-                               │ rclone pull (omp wrapper, pull-only, every session start)
-                               ▼
-                 Device A / B / C  →  .omp/skills/ (LOCAL RUNTIME COPY)  →  OMP
+                   ┌──────────────┴──────────────┐
+                   ▼                             ▼
+          validate_skills.py            git add (public subset only,
+          (gate)                        per private-skills.txt exclusion)
+                   │                             │
+                   ▼                             ▼
+          ./publish-skills.sh              git commit + push
+                   │ rclone sync                 │
+                   │ (PUBLISH_ALLOWED=1)          ▼
+                   ▼                       ┌────────────────┐
+          ┌──────────────────────┐        │    GITHUB      │
+          │          R2           │        │ GENERATED      │
+          │   RUNTIME DISTRIBUTION │        │ MIRROR (public │
+          │  (private infra —     │        │ subset only)   │
+          │   not a public surface)│        └────────────────┘
+          └──────────┬─────────────┘  receives BOTH tiers; R2 is NOT a
+                     │ rclone pull      public surface, just faster/less
+                     │ (omp wrapper,    fragile than git-clone-per-device
+                     │  pull-only)
+                     ▼
+       Device A / B / C  →  .omp/skills/ (LOCAL RUNTIME COPY)  →  OMP
 ```
 
-**Note on public skill authorship**: public skills are currently authored
-directly as files in the `kerangka` GitHub repo's working tree, not produced
-by an automated extraction/redaction step from Fossil. If a skill needs both
-a private (detailed, infra-specific) and public (generic, redacted) version,
-that redaction is done manually by a human/agent creating a separate public
-file — there is no `fossil export --public` mechanism. This directive
-deliberately does not invent one (no unsupported automation).
+**Editing workflow (applies to ALL skills now, public or private)**:
+1. Edit the `SKILL.md` directly in `~/kerangka-private` (the Fossil checkout).
+2. `fossil commit`.
+3. From `~/kerangka`, run `./fossil-export-skills.sh` — materializes into
+   `.omp/skills/`, stages + commits the public subset to git.
+4. `git push origin main` — updates the GitHub mirror (manual, explicit,
+   same reasoning as R2's `PUBLISH_ALLOWED` gate: no silent auto-push).
+5. `./publish-skills.sh` — validates, publishes everything (both tiers) to R2.
+
+**Classification**: `private-skills.txt` (in the Fossil checkout) is an
+**exclusion list** — every Fossil-tracked skill with a `SKILL.md` is a
+public-mirror candidate by default; listing a name there is what keeps it
+out of the GitHub mirror. Getting this list wrong leaks private content
+publicly, so `fossil-export-skills.sh` is the only script permitted to
+decide the public/private split — do not hand-roll a second classifier.
 
 Rules:
-- **Fossil is the only authoritative source for PRIVATE skills/knowledge.** Modify a private skill by editing it in the `kerangka-private` Fossil checkout, then `fossil commit` — never edit the R2 copy or a device's local runtime copy and expect it to persist as canonical.
-- **The separate `kerangka` GitHub repo is the only authoritative source for PUBLIC skills/docs/scripts.** New/changed public skills are edited there, committed, then copied into this repo's `.omp/skills/` before publishing. GitHub does NOT feed device runtimes directly — only R2 does.
-- **`.omp/skills/` is a local runtime copy, never a source.** Treat any edit made directly in `.omp/skills/` (in this repo or on any device) as ephemeral — it will be silently overwritten by the next `rclone pull` unless separately committed to Fossil or the GitHub repo.
+- **Fossil is the only authoritative source for ALL skills, public and private.** Modify any skill by editing it in the `kerangka-private` Fossil checkout, then `fossil commit` — never edit the R2 copy, the GitHub mirror, or a device's local runtime copy and expect it to persist as canonical.
+- **GitHub is a generated mirror, never a source.** `.omp/skills/` in the `kerangka` git working tree is regenerated by `fossil-export-skills.sh` on every run. A hand-edit made directly to a file under `.omp/skills/` in the `kerangka` git checkout will be silently overwritten the next time the export script runs — it is not a bug, it is the point.
+- **`.omp/skills/` is a local runtime copy, never a source.** Same rule applies on every device: pulled content from R2 is disposable and re-derived from Fossil, never edited in place and expected to persist.
 - **R2 is distribution, not collaboration, and not a public surface.** It receives BOTH tiers (R2 is private infrastructure the user's own devices pull from — being distributed via R2 doesn't make a skill public). Multiple devices independently pushing to it would recreate the ambiguity this model eliminates.
 - **rclone is transport only.** It has no opinion about authority — `rclone-sync-skills.sh pull` is safe for any device at any time; `rclone-sync-skills.sh push` is gated (`PUBLISH_ALLOWED=1`) and only ever invoked by `./publish-skills.sh`. Push uses `rclone sync` (not `copy`) so skills retired locally actually disappear from R2 instead of accumulating forever.
-- **Publishing is explicit.** `./publish-skills.sh` regenerates `.omp/skills/` from managed-skills + `knowledge/` embedded-class, runs `src/validate_skills.py` as a hard gate over the full local set (both tiers together), writes `.omp/skills/MANIFEST.json` (Fossil revision, public-repo revision if configured, timestamp, skill count/list — no secrets), then pushes to R2. Validation failure = zero R2 change, non-zero exit.
+- **Publishing to R2 is explicit.** `./publish-skills.sh` runs `fossil-export-skills.sh --no-git` (materialize only, skip the GitHub-mirror commit step), bridges in anything from `managed-skills/` + `knowledge/` embedded-class not yet committed to Fossil, runs `src/validate_skills.py` as a hard gate over the full local set, writes `.omp/skills/MANIFEST.json`, then pushes to R2. Validation failure = zero R2 change, non-zero exit.
+- **Publishing to GitHub is a separate explicit act.** `./fossil-export-skills.sh` (without `--no-git`) stages and commits the public subset locally; you still run `git push` yourself. This mirrors R2's explicit-write-path philosophy — no silent auto-push on session activity.
 - **Fossil autosync is OFF** — no automatic commit/push, matching the same "no silent auto-publish on session start" lesson that motivated moving away from git-autopull/push in the first place.
-- **Normal `omp` startup only pulls.** The wrapper never pushes local state to R2, never commits to Fossil, never commits/pushes to the public GitHub repo as a session side effect. (Verified 2026-08-24: `omp()` in `~/.zshrc` contains no push call.)
+- **Normal `omp` startup only pulls.** The wrapper never pushes local state to R2, never commits to Fossil, never commits/pushes to the GitHub mirror as a session side effect. (Verified 2026-08-24: `omp()` in `~/.zshrc` contains no push call.)
 - **Failed pulls never destroy local skills.** `rclone copy --update` only overwrites when the remote is newer; an unreachable R2 leaves existing local skills untouched.
-- **Do not edit R2 directly.** Do not treat a local device copy as authoritative for either tier.
+- **Do not edit R2 or the GitHub mirror directly.** Neither is authoritative for either tier.
 - **Hindsight is not part of this chain.** Memory (recall/retain/reflect/learn) is a completely separate system — see "Memory Flow" below. Hindsight never synchronizes skills, and skills are never stored inside Hindsight beyond compact metadata references.
 
 ## What Is Knowledge?
