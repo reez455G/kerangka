@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Kerangka / my-ai-agents — System Architecture",
+    "quality_profile": "showcase",
+    "output": "diagrams/repo-structure.architecture.html",
+    "views": [
+      { "id": "skill-flow",   "label": "Skill flow",   "focus": ["fossil", "skills", "r2", "omp"],                "note": "From canonical Fossil source to runtime: materialize → validate → publish → pull." },
+      { "id": "role-routing", "label": "Role routing", "focus": ["leader", "registry", "specialist", "kanboard"], "note": "Leader reads role registry, routes work to ephemeral specialists, coordinates via Kanboard." },
+      { "id": "memory-chain", "label": "Memory chain", "focus": ["leader", "specialist", "hindsight"],            "note": "Recall and retain across sessions via Hindsight embedded memory backend." }
+    ]
+  },
+  "components": [
+    { "id": "fossil",     "type": "database",  "label": "Fossil",        "sublabel": "kerangka-private",  "pos": [80,  80],   "size": [160, 60], "tag": "private canonical" },
+    { "id": "github",     "type": "cloud",     "label": "GitHub",        "sublabel": "kerangka (public)", "pos": [80,  280],  "size": [160, 60] },
+    { "id": "skills",     "type": "backend",   "label": "Skills",        "sublabel": ".omp/skills/",      "pos": [320, 180],  "size": [160, 60] },
+    { "id": "r2",         "type": "cloud",     "label": "R2",            "sublabel": "Cloudflare",        "pos": [560, 80],   "size": [160, 60] },
+    { "id": "omp",        "type": "backend",   "label": "OMP",           "sublabel": "Agent Runtime",     "pos": [560, 280],  "size": [160, 60] },
+    { "id": "leader",     "type": "backend",   "label": "Leader",        "sublabel": "Orchestrator",      "pos": [800, 280],  "size": [160, 60] },
+    { "id": "registry",   "type": "security",  "label": "Role Registry", "sublabel": "roles/",            "pos": [800, 460],  "size": [160, 60] },
+    { "id": "specialist", "type": "backend",   "label": "Specialists",   "sublabel": "6 Ephemeral roles", "pos": [1060, 180], "size": [160, 60] },
+    { "id": "hindsight",  "type": "database",  "label": "Hindsight",     "sublabel": "Memory / LLM",      "pos": [1060, 380], "size": [160, 60], "tag": "Docker + Postgres" },
+    { "id": "kanboard",   "type": "external",  "label": "Kanboard",      "sublabel": "localhost:8080",    "pos": [1060, 560], "size": [160, 60] }
+  ],
+  "boundaries": [
+    { "kind": "region",         "label": "Canonical Sources",  "wraps": ["fossil", "github"] },
+    { "kind": "region",         "label": "Distribution Layer", "wraps": ["skills", "r2"] },
+    { "kind": "security-group", "label": "Execution Layer",    "wraps": ["leader", "specialist", "hindsight", "registry"] }
+  ],
+  "connections": [
+    { "id": "fossil-materialize", "from": "fossil",     "to": "skills",     "label": "fossil-export-skills.sh", "variant": "emphasis", "labelDy": 18 },
+    { "id": "fossil-mirror",      "from": "fossil",     "to": "github",     "label": "mirrors public",          "variant": "dashed",   "labelAt": [210, 154] },
+    { "id": "skills-publish",     "from": "skills",     "to": "r2",         "label": "publish-skills.sh",       "variant": "emphasis", "labelDy": 18 },
+    { "id": "r2-pull",            "from": "r2",         "to": "omp",        "label": "session pull",            "variant": "default",  "labelAt": [690, 154] },
+    { "id": "omp-runs-leader",    "from": "omp",        "to": "leader",     "label": "runs",                    "variant": "emphasis", "labelDy": -18 },
+    { "id": "leader-spawns",      "from": "leader",     "to": "specialist", "label": "spawns (task tool)",      "variant": "emphasis", "labelDy": -18 },
+    { "id": "leader-recalls",     "from": "leader",     "to": "hindsight",  "label": "recall / retain",         "variant": "dashed",   "labelAt": [960, 360] },
+    { "id": "leader-routes",      "from": "leader",     "to": "registry",   "label": "role_search.py",          "variant": "default",  "labelAt": [930, 354] },
+    { "id": "leader-kanboard",    "from": "leader",     "to": "kanboard",   "label": "coordinates via",         "variant": "dashed",   "labelAt": [1060, 376] },
+    { "id": "specialist-retain",  "from": "specialist", "to": "hindsight",  "label": "retain",                  "variant": "dashed",   "labelAt": [1190, 254] }
+  ],
+  "cards": [
+    { "dot": "cyan",    "title": "Skill Chain",  "items": ["Fossil is sole canonical source for all skills (public + private)", "fossil-export-skills.sh materializes → validate_skills.py gates → publish-skills.sh pushes to R2", "OMP pulls skills from R2 on every session start"] },
+    { "dot": "emerald", "title": "Role Routing", "items": ["Leader is the persistent orchestrator — never a spawned agent", "role_search.py ranks roles by keyword; skill_search.py narrows to 3 skills per task", "6 ephemeral specialists: infra-automation, business-analyst, network-security, observability-secops, backend-api, polymarket-trader"] },
+    { "dot": "rose",    "title": "Memory",       "items": ["Hindsight = embedded Postgres + LLM (Docker)", "Leader and specialists recall/retain via Hindsight across sessions", "Kanboard = human-visible task board; role accounts pre-created (uid 2–8)"] }
+  ]
+}

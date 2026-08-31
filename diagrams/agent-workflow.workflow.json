@@ -1,0 +1,51 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Agent Orchestration and Skill Publish Workflow",
+    "quality_profile": "showcase",
+    "output": "diagrams/agent-workflow.workflow.json"
+  },
+  "lanes": [
+    { "id": "authoring", "label": "Authoring" },
+    { "id": "fossil-git", "label": "Fossil/Git" },
+    { "id": "runtime", "label": "Runtime" },
+    { "id": "distribution", "label": "Distribution" },
+    { "id": "agent-layer", "label": "Agent Layer" }
+  ],
+  "phases": [
+    { "id": "publish_cycle", "label": "Skill Publish Cycle", "fromCol": 0, "toCol": 2, "variant": "emphasis" },
+    { "id": "orchestration_loop", "label": "Agent Orchestration Loop", "fromCol": 3, "toCol": 5, "variant": "emphasis" }
+  ],
+  "mainPath": ["edit_skill", "fossil_export", "validate_skills", "publish_gate", "rclone_push", "omp_pull", "user_prompt", "leader_agent", "capability_search", "specialist_execution", "synthesize_and_retain", "final_reply"],
+  "nodes": [
+    { "id": "edit_skill", "lane": "authoring", "col": 0, "type": "external", "label": "Edit Skill", "sublabel": "Fossil/Git", "width": 150 },
+    { "id": "fossil_export", "lane": "fossil-git", "col": 0, "type": "backend", "label": "Fossil Export", "sublabel": "Materialize", "width": 150 },
+    { "id": "validate_skills", "lane": "runtime", "col": 0, "type": "backend", "label": "Validate", "sublabel": "Python check", "width": 150 },
+    { "id": "publish_gate", "lane": "runtime", "col": 1, "type": "security", "label": "Publish Gate", "sublabel": "Gatekeeper", "width": 150 },
+    { "id": "rclone_push", "lane": "distribution", "col": 1, "type": "cloud", "label": "Rclone Push", "sublabel": "To R2", "width": 150 },
+    { "id": "omp_pull", "lane": "runtime", "col": 2, "type": "backend", "label": "OMP Pull", "sublabel": "On Session", "width": 150 },
+    { "id": "user_prompt", "lane": "authoring", "col": 2, "type": "external", "label": "User Prompt", "sublabel": "Input", "width": 150 },
+    { "id": "leader_agent", "lane": "agent-layer", "col": 2, "type": "backend", "label": "Leader Agent", "sublabel": "Orchestrator", "width": 150 },
+    { "id": "capability_search", "lane": "agent-layer", "col": 3, "type": "backend", "label": "Capability Search", "sublabel": "Roles + Skills", "width": 150 },
+    { "id": "specialist_execution", "lane": "agent-layer", "col": 4, "type": "backend", "label": "Specialist Execution", "sublabel": "Work + Task", "width": 150 },
+    { "id": "synthesize_and_retain", "lane": "agent-layer", "col": 5, "type": "database", "label": "Synthesize & Retain", "sublabel": "Response + Memory", "width": 150 },
+    { "id": "final_reply", "lane": "authoring", "col": 5, "type": "frontend", "label": "Final Reply", "sublabel": "To user", "width": 150 }
+  ],
+  "edges": [
+    { "id": "e1", "from": "edit_skill", "to": "fossil_export" },
+    { "id": "e2", "from": "fossil_export", "to": "validate_skills" },
+    { "id": "e3", "from": "validate_skills", "to": "publish_gate" },
+    { "id": "e4", "from": "publish_gate", "to": "rclone_push" },
+    { "id": "e5", "from": "rclone_push", "to": "omp_pull" },
+    { "id": "e6", "from": "omp_pull", "to": "user_prompt" },
+    { "id": "e7", "from": "user_prompt", "to": "leader_agent" },
+    { "id": "e8", "from": "leader_agent", "to": "capability_search" },
+    { "id": "e9", "from": "capability_search", "to": "specialist_execution" },
+    { "id": "e10", "from": "specialist_execution", "to": "synthesize_and_retain" },
+    { "id": "e11", "from": "synthesize_and_retain", "to": "final_reply" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Workflow", "items": ["Skill publish cycle", "Agent orchestration loop"] }
+  ]
+}
