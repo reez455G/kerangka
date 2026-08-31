@@ -40,6 +40,7 @@ delegation_targets:
   - network-security
   - observability-secops
   - backend-api
+  - polymarket-trader
 ---
 
 # Leader
